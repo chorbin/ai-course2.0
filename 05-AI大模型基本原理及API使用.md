@@ -141,7 +141,7 @@ response = client.chat.completions.create(
     ],
     temperature=0.7,
     max_tokens=8000,
-    reasoning_effort="high"  # 2026新特性：可调节推理深度
+    model="gpt-4o"  # 2026新特性：可调节推理深度
 )
 
 print(response.choices[0].message.content)
@@ -176,7 +176,7 @@ message = client.messages.create(
     messages=[
         {"role": "user", "content": "请分析这个系统架构的安全性风险：..."}
     ],
-    thinking_mode="interleaved"  # 2026新特性：思维链模式
+    thinking={"type": "enabled"}  # 2026新特性：思维链模式
 )
 
 print(message.content[0].text)
@@ -365,7 +365,7 @@ response = client.chat.completions.create(
     model="gpt-5.4",
     messages=[...],
     temperature=0.3,
-    reasoning_effort="high",
+    model="gpt-4o",
     max_tokens=16000
 )
 
