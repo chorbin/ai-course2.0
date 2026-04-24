@@ -357,7 +357,7 @@ response = client.chat.completions.create(
     model="gpt-5.4",
     messages=[...],
     temperature=0.1,
-    reasoning_effort="medium"
+    model="medium"
 )
 
 # 场景2：复杂系统设计（深度推理）
