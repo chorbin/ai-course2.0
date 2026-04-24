@@ -1,3 +1,5 @@
+[AI课程2.0整改版]
+
 # 第三十六章：Dify本地化部署与应用——企业级LLM应用开发平台
 
 > **学习目标**：深入理解Dify平台的核心架构与价值，掌握本地化部署的完整流程，学会设计复杂的LLM工作流，并通过企业实战案例理解如何在生产环境中构建可靠的AI应用。同时对比Dify与OpenClaw的技术路线，为企业的平台选型提供决策依据。
@@ -55,8 +57,7 @@ Dify作为一个开源的LLM应用开发平台，致力于解决上述问题：
 | 灵活性 | 高度定制但开发成本高 | 可视化配置+API扩展，平衡灵活与效率 |
 
 **2026年的Dify**：经过两年的快速迭代，Dify已从最初的"LLM应用快速开发工具"成长为**企业级LLM应用操作系统**，支持：
-- 多租户与组织架构管理
-- 细粒度权限控制
+- 细粒度权限控制（开源版通过tenant_id实现逻辑隔离，企业版提供原生多租户）
 - 完整的API生态
 - 企业级监控与告警
 - 与主流DevOps工具链集成
@@ -76,7 +77,7 @@ Dify采用现代化的微服务架构，核心组件包括：
 │                                                                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
 │  │   Web UI    │  │  API Gateway │  │  Admin Panel │              │
-│  │  (Next.js)  │  │  (Kong/APISIX)│  │   (React)   │              │
+│  │  (Next.js)  │  │  (Nginx)    │  │   (React)   │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 │         │                │                │                       │
 │         └────────────────┼────────────────┘                       │
@@ -176,7 +177,7 @@ Dify提供三种部署方式，企业可根据实际情况选择：
 ```
 操作系统：Ubuntu 20.04+ / CentOS 7+ / macOS 10.15+
 硬件配置：
-  - 最小配置：4核CPU、8GB内存、50GB存储
+  - 最小配置：2核CPU、4GB内存、20GB+存储
   - 推荐配置：8核CPU、16GB内存、200GB存储
 软件依赖：
   - Docker 24.0+
@@ -193,8 +194,8 @@ Dify提供三种部署方式，企业可根据实际情况选择：
 git clone https://github.com/langgenius/dify.git
 cd dify
 
-# 切换到稳定版本（2026年3月最新稳定版为v1.2.0）
-git checkout v1.2.0
+# 切换到稳定版本（2026年3月最新稳定版为v1.13.2）
+git checkout v1.13.2
 ```
 
 **步骤二：配置环境变量**
@@ -283,7 +284,7 @@ replicaCount:
 
 image:
   repository: langgenius/dify
-  tag: "1.2.0"
+  tag: "1.13.2"
 
 ingress:
   enabled: true
@@ -315,19 +316,21 @@ extraEnvVars:
         key: openai-api-key
 ```
 
-部署命令：
+部署命令（社区版）：
 
 ```bash
-# 添加Helm仓库
-helm repo add dify https://langgenius.github.io/dify-helm/
+# 添加社区版Helm仓库
+helm repo add dify-community https://borispolonsky.github.io/dify-helm
 helm repo update
 
 # 部署
-helm install dify dify/dify \
+helm install dify dify-community/dify \
   -n dify \
   --create-namespace \
   -f values.yaml
 ```
+
+> **注意**：Dify企业版(EE)的Helm Chart仓库为 `https://langgenius.github.io/dify-helm/`，与社区版仓库不同，部署时请根据实际版本选择对应的仓库地址。
 
 ### 36.3.4 常见问题与解决方案
 
