@@ -18,7 +18,7 @@
 - 数据安全和隐私合规要求，使得RAG的"本地知识+云端推理"模式成为主流
 
 **技术成熟度拐点**
-- 向量数据库性能大幅提升（Milvus 3.0、Pinecone企业版等）
+- 向量数据库性能大幅提升（Milvus 2.x（最新稳定版）、Pinecone企业版等）
 - Embedding模型质量接近人类语义理解水平
 - RAG框架标准化程度提高，落地周期从数月缩短到数周
 
@@ -51,7 +51,7 @@
 
 **2. 大模型应用开发能力（权重：25%）**
 - 精通LangChain、LlamaIndex等RAG框架
-- 熟悉主流大模型API（GPT-4o Claude 3 DeepSeek V4等）
+- 熟悉主流大模型API（GPT-4o Claude 3 DeepSeek V3等）
 - 掌握Prompt Engineering最佳实践
 
 **3. 数据工程能力（权重：20%）**
