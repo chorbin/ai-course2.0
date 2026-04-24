@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI大模型技术与商业应用</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --accent: #22d3ee;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-icon { font-size: 26px; }
+        .logo h1 {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .header-info {
+            margin-left: auto;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .container {
+            display: flex;
+            margin-top: 56px;
+            height: calc(100vh - 56px);
+        }
+        .sidebar {
+            width: 300px;
+            min-width: 300px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-header h2 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        .toggle-all {
+            background: var(--bg-hover);
+            border: none;
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .toggle-all:hover { background: var(--primary); color: white; }
+        .module-group { border-bottom: 1px solid var(--border); }
+        .module-header {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .module-header:hover { background: var(--bg-hover); }
+        .module-icon { font-size: 16px; }
+        .module-title { flex: 1; font-size: 13px; font-weight: 500; }
+        .module-count {
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: 8px;
+        }
+        .toggle-icon {
+            font-size: 9px;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+        .module-header.expanded .toggle-icon { transform: rotate(90deg); }
+        .chapter-list {
+            max-height: 0;
+            overflow: hidden;
+            background: rgba(0,0,0,0.15);
+        }
+        .chapter-list.show { max-height: 2000px; }
+        .chapter-item {
+            padding: 8px 16px 8px 40px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .chapter-item:hover { background: var(--bg-hover); }
+        .chapter-item.active {
+            background: var(--primary);
+            color: white;
+        }
+        .chapter-number {
+            color: var(--text-secondary);
+            font-size: 11px;
+            min-width: 22px;
+        }
+        .chapter-item.active .chapter-number { color: rgba(255,255,255,0.7); }
+        .content-frame {
+            flex: 1;
+            border: none;
+            background: var(--bg-dark);
+            position: relative;
+            z-index: 10;
+        }
+        .frame-loading {
+            position: absolute;
+            top: 56px;
+            left: 300px;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .frame-loading.hidden {
+            display: none;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text {
+            margin-top: 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @media (max-width: 768px) {
+            .frame-loading {
+                left: 0;
+            }
+        }
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+        .welcome h2 { font-size: 28px; margin-bottom: 12px; color: var(--text-primary); }
+        .welcome p { font-size: 16px; }
+        .welcome-page {
+            background: var(--bg-dark);
+        }
+        .welcome-page .welcome-icon {
+            font-size: 72px;
+            margin-bottom: 24px;
+        }
+        .welcome-page h2 {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .welcome-page p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+        .welcome-stats {
+            display: flex;
+            gap: 48px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-num {
+            display: block;
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -300px;
+                z-index: 1000;
+                height: calc(100vh - 56px);
+                transition: left 0.3s;
+            }
+            .sidebar.open { left: 0; }
+            .menu-btn {
+                display: flex !important;
+                position: fixed;
+                bottom: 16px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background: var(--primary);
+                border: none;
+                color: white;
+                font-size: 22px;
+                cursor: pointer;
+                z-index: 1001;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        .menu-btn { display: none; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span class="logo-icon">🤖</span>
+            <h1>AI大模型技术与商业应用</h1>
+        </div>
+        <div class="header-info">41章节 · 八大模块</div>
+    </header>
+    <div class="container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>📚 课程目录</h2>
+                <button class="toggle-all" id="toggleAll">全部展开</button>
+            </div>
+            <nav id="nav"></nav>
+        </aside>
+        <iframe id="contentFrame" class="content-frame" src="about:blank"></iframe>
+    </div>
+    <button class="menu-btn" id="menuBtn">☰</button>
+    
+    <!-- 欢迎页面 -->
+    <div class="frame-loading welcome-page" id="welcomePage">
+        <div class="welcome-icon">🤖</div>
+        <h2>欢迎来到 AI 大模型课程</h2>
+        <p>请在左侧目录选择章节开始学习</p>
+        <div class="welcome-stats">
+            <div class="stat-item"><span class="stat-num">41</span><span class="stat-label">章节</span></div>
+            <div class="stat-item"><span class="stat-num">8</span><span class="stat-label">模块</span></div>
+        </div>
+    </div>
+    <!-- 加载提示 -->
+    <div class="frame-loading hidden" id="frameLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载课程内容...</div>
+    </div>
+    
+    <script>
+        const MODULES = [
+            {id:1, title:'AI大模型基础', icon:'🧭', chapters:[1,2,3,4,5,6,7,8,9,10]},
+            {id:2, title:'RAG技术深度实战', icon:'🔍', chapters:[11,12,13]},
+            {id:3, title:'Agent开发与实战', icon:'🤖', chapters:[14,15,16,17,18,19]},
+            {id:4, title:'开发框架实战', icon:'💻', chapters:[20,21,22,23,24,25]},
+            {id:5, title:'模型训练与微调', icon:'⚙️', chapters:[26,27,28,29,30,31]},
+            {id:6, title:'模型部署及高并发', icon:'🚀', chapters:[32,33,34]},
+            {id:7, title:'低代码平台实战', icon:'📱', chapters:[35,36]},
+            {id:8, title:'研发工程增效', icon:'🏢', chapters:[37,38,39,40,41]}
+        ];
+        
+        const CHAPTERS = {
+            1:{title:'开学典礼', file:'chapter-01.html'},
+            2:{title:'从提示工程到RAG', file:'chapter-02.html'},
+            3:{title:'Agent：从可控性到自主反思', file:'chapter-03.html'},
+            4:{title:'多模态前沿', file:'chapter-04.html'},
+            5:{title:'AI大模型基本原理及API使用', file:'chapter-05.html'},
+            6:{title:'AI编程-从入门到精通', file:'chapter-06.html'},
+            7:{title:'OpenClaw-搭建你的私人助理', file:'chapter-07.html'},
+            8:{title:'Embeddings和向量数据库', file:'chapter-08.html'},
+            9:{title:'RAG技术与应用', file:'chapter-09.html'},
+            10:{title:'RAG多模态数据处理', file:'chapter-10.html'},
+            11:{title:'RAG调优', file:'chapter-11.html'},
+            12:{title:'项目实战：企业知识库', file:'chapter-12.html'},
+            13:{title:'就业服务：RAG相关简历+面试问题辅导', file:'chapter-13.html'},
+            14:{title:'Function Calling与MCP', file:'chapter-14.html'},
+            15:{title:'Agent的自主规划与工具开发', file:'chapter-15.html'},
+            16:{title:'构建Agent的搜索、感知与记忆能力', file:'chapter-16.html'},
+            17:{title:'Agent的能力优化与效果评估', file:'chapter-17.html'},
+            18:{title:'项目实战：OpenManus开发实践', file:'chapter-18.html'},
+            19:{title:'就业服务：Agent相关简历+面试问题辅导', file:'chapter-19.html'},
+            20:{title:'LangChain：多任务应用开发', file:'chapter-20.html'},
+            21:{title:'AI框架设计与选型', file:'chapter-21.html'},
+            22:{title:'HuggingFace生态实战', file:'chapter-22.html'},
+            23:{title:'神经网络基础与TensorFlow实战', file:'chapter-23.html'},
+            24:{title:'PyTorch与视觉检测', file:'chapter-24.html'},
+            25:{title:'就业服务：开发框架相关简历+面试问题辅导', file:'chapter-25.html'},
+            26:{title:'LLM微调原理', file:'chapter-26.html'},
+            27:{title:'高质量微调数据工程与评估', file:'chapter-27.html'},
+            28:{title:'LLM模型蒸馏与微调实操', file:'chapter-28.html'},
+            29:{title:'视觉与多模态模型', file:'chapter-29.html'},
+            30:{title:'项目实战：AI质检', file:'chapter-30.html'},
+            31:{title:'就业服务：模型训练与微调相关简历+面试问题辅导', file:'chapter-31.html'},
+            32:{title:'企业级AI部署', file:'chapter-32.html'},
+            33:{title:'AI服务核心：高并发原理与性能监控调优', file:'chapter-33.html'},
+            34:{title:'SGLang深度优化', file:'chapter-34.html'},
+            35:{title:'Coze工作原理与应用实例', file:'chapter-35.html'},
+            36:{title:'Dify本地化部署与应用', file:'chapter-36.html'},
+            37:{title:'Agent调试、运维与系统集成', file:'chapter-37.html'},
+            38:{title:'AI赋能的智能测试与质量保障', file:'chapter-38.html'},
+            39:{title:'从Text-to-SQL到数据智能', file:'chapter-39.html'},
+            40:{title:'项目实战：ChatBI开发实战', file:'chapter-40.html'},
+            41:{title:'就业服务：部署及特效相关简历+面试问题辅导', file:'chapter-41.html'}
+        };
+        
+        let allExpanded = false;
+        
+        // 生成目录
+        function renderNav() {
+            let html = '';
+            MODULES.forEach(m => {
+                let chHtml = '';
+                m.chapters.forEach(n => {
+                    if (CHAPTERS[n]) {
+                        chHtml += `<div class="chapter-item" data-ch="${n}"><span class="chapter-number">${n}.</span><span>${CHAPTERS[n].title}</span></div>`;
+                    }
+                });
+                html += `<div class="module-group">
+                    <div class="module-header"><span class="module-icon">${m.icon}</span><span class="module-title">${m.title}</span><span class="module-count">${m.chapters.length}章</span><span class="toggle-icon">▶</span></div>
+                    <div class="chapter-list">${chHtml}</div>
+                </div>`;
+            });
+            document.getElementById('nav').innerHTML = html;
+        }
+        
+        // 事件绑定
+        function bindEvents() {
+            document.getElementById('nav').addEventListener('click', e => {
+                const h = e.target.closest('.module-header');
+                if (h) {
+                    h.classList.toggle('expanded');
+                    h.nextElementSibling.classList.toggle('show');
+                }
+                const item = e.target.closest('.chapter-item');
+                if (item) loadChapter(parseInt(item.dataset.ch));
+            });
+            
+            document.getElementById('toggleAll').addEventListener('click', () => {
+                allExpanded = !allExpanded;
+                document.querySelectorAll('.module-header').forEach(h => {
+                    h.classList.toggle('expanded', allExpanded);
+                    h.nextElementSibling.classList.toggle('show', allExpanded);
+                });
+                document.getElementById('toggleAll').textContent = allExpanded ? '全部收起' : '全部展开';
+            });
+            
+            document.getElementById('menuBtn').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('open');
+            });
+        }
+        
+        // 加载章节
+        function loadChapter(n) {
+            // 隐藏欢迎页面，显示加载提示
+            document.getElementById('welcomePage').classList.add('hidden');
+            document.getElementById('frameLoading').classList.remove('hidden');
+            
+            document.querySelectorAll('.chapter-item.active').forEach(el => el.classList.remove('active'));
+            const item = document.querySelector(`.chapter-item[data-ch="${n}"]`);
+            if (item) {
+                item.classList.add('active');
+                const pg = item.closest('.module-group');
+                if (pg) {
+                    pg.querySelector('.module-header').classList.add('expanded');
+                    pg.querySelector('.chapter-list').classList.add('show');
+                }
+            }
+            if (CHAPTERS[n]) {
+                const frame = document.getElementById('contentFrame');
+                frame.src = CHAPTERS[n].file;
+                history.pushState({ch:n}, '', '#ch-' + n);
+                
+                // iframe加载完成后隐藏加载提示
+                frame.onload = function() {
+                    document.getElementById('frameLoading').classList.add('hidden');
+                };
+            }
+        }
+        
+        // 初始化
+        renderNav();
+        bindEvents();
+        
+        // 检查URL hash
+        const m = location.hash.match(/#ch-(\d+)/);
+        if (m) loadChapter(parseInt(m[1]));
+    </script>
+</body>
+</html>

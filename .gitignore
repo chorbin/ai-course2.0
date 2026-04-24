@@ -1,0 +1,10 @@
+# Temp files
+*.bak
+temp.js
+fix*.js
+fix*.py
+generate_chapter*.py
+test*.html
+test.md
+optimize-loading.ps1
+step1.ps1

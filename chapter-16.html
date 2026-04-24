@@ -1,0 +1,1794 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第16章 构建Agent的搜索、感知与记忆能力</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #e0e0e0;
+            line-height: 1.8;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #00d9ff;
+            text-align: center;
+            margin-bottom: 50px;
+            text-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+            border-bottom: 2px solid rgba(0, 217, 255, 0.3);
+            padding-bottom: 20px;
+        }
+        h2 {
+            font-size: 1.8em;
+            color: #00d9ff;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            border-left: 4px solid #00d9ff;
+            padding-left: 15px;
+        }
+        h3 {
+            font-size: 1.4em;
+            color: #64ffda;
+            margin-top: 35px;
+            margin-bottom: 20px;
+        }
+        h4 {
+            font-size: 1.2em;
+            color: #a0e7ff;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        p { margin-bottom: 15px; text-align: justify; }
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.5), transparent);
+            margin: 40px 0;
+        }
+        pre {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        code {
+            font-family: "JetBrains Mono", "Fira Code", Consolas, Monaco, monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        pre code {
+            color: #e6edf3;
+            background: transparent;
+            padding: 0;
+            display: block;
+            white-space: pre;
+        }
+        p code, li code {
+            background: rgba(0, 217, 255, 0.1);
+            color: #00d9ff;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        ul, ol { margin: 15px 0; padding-left: 30px; }
+        li { margin-bottom: 10px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        tr:hover { background: rgba(0, 217, 255, 0.05); }
+        blockquote {
+            border-left: 4px solid #00d9ff;
+            background: rgba(0, 217, 255, 0.05);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        strong { color: #64ffda; }
+        a {
+            color: #00d9ff;
+            text-decoration: none;
+            border-bottom: 1px dotted rgba(0, 217, 255, 0.5);
+        }
+        a:hover { color: #64ffda; border-bottom-color: #64ffda; }
+        .ascii-art {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: "JetBrains Mono", Consolas, monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+            color: #a0e7ff;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00d9ff; }
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8em; }
+            h2 { font-size: 1.4em; }
+            h3 { font-size: 1.2em; }
+            .container { padding: 20px 15px; }
+            pre { padding: 15px; }
+            .ascii-art { font-size: 0.75em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+<h1>第16章 构建Agent的搜索、感知与记忆能力</h1>
+
+<h2>引言：Agent的"眼、耳、脑"</h2>
+
+<p>如果说Agent是企业的数字化员工，那么搜索、感知与记忆就是它的眼睛、耳朵和大脑。没有搜索能力，Agent就像一个被蒙住双眼的员工，无法获取外部信息；没有感知能力，Agent就像一个感官迟钝的员工，对环境变化视而不见；没有记忆能力，Agent就像一个健忘的员工，每次对话都从零开始。</p>
+
+<p>在2026年的今天，多模态搜索已成标配，实时感知能力日臻成熟，记忆系统设计也形成了完整的理论框架和实践方法论。本章将深入探讨如何为Agent构建强大的搜索、感知与记忆能力，让您的Agent真正成为一个"有感知、有记忆、能主动获取信息"的智能助手。</p>
+
+<hr>
+
+<h2>16.1 Agent搜索能力构建</h2>
+
+<h3>16.1.1 搜索能力的重要性与演进</h3>
+
+<strong>为什么Agent需要搜索能力？</strong>
+
+<p>想象一个场景：您问助理"上周项目进度怎么样？"，如果助理没有搜索能力，它只能回答"我不知道"或给出一个模糊的答案。但如果助理具备搜索能力，它可以主动查询项目管理系统、检索相关邮件、查看会议记录，然后给出一个基于事实的精准回答。</p>
+
+<p>搜索能力是Agent突破知识边界的核心途径。大模型的知识有截止日期，而搜索能力让Agent能够实时获取最新信息，连接外部知识库，真正成为"活"的智能体。</p>
+
+<strong>搜索能力的演进历程</strong>：
+
+<pre><code>阶段一：关键词搜索时代（2020年前）
+    │
+    │  特点：精确匹配，语义理解弱
+    │  代表：传统搜索引擎
+    │
+    ▼
+阶段二：语义搜索时代（2021-2023）
+    │
+    │  特点：Embedding向量检索，语义理解
+    │  代表：RAG系统
+    │
+    ▼
+阶段三：多模态搜索时代（2024-2025）
+    │
+    │  特点：跨模态检索，图文音视频统一
+    │  代表：多模态RAG
+    │
+    ▼
+阶段四：智能搜索时代（2026年至今）
+       特点：Agent主动搜索，多源融合，实时更新
+       代表：OpenClaw智能搜索系统</code></pre>
+
+<h3>16.1.2 2026年多模态搜索架构</h3>
+
+<p>在2026年，一个完整的Agent搜索系统已经从单一的文本检索发展为多模态、多源融合的智能搜索架构。</p>
+
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    多模态搜索架构 (2026)                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                   查询理解层                         │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐            │   │
+│  │  │ 意图识别 │  │ 实体抽取 │  │ 查询改写 │            │   │
+│  │  └─────────┘  └─────────┘  └─────────┘            │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                   多源检索层                         │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐           │   │
+│  │  │ 文本检索  │ │ 图像检索  │ │ 音频检索  │           │   │
+│  │  │ (向量DB) │ │ (视觉模型)│ │ (语音向量)│           │   │
+│  │  └──────────┘ └──────────┘ └──────────┘           │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐           │   │
+│  │  │ 视频检索  │ │ 实时搜索  │ │ 知识图谱  │           │   │
+│  │  │ (多模态) │ │ (联网)    │ │ (关系)   │           │   │
+│  │  └──────────┘ └──────────┘ └──────────┘           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                   融合排序层                         │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐            │   │
+│  │  │ 相关性打分│  │ 多样性优化│  │ 时效性加权│            │   │
+│  │  └─────────┘  └─────────┘  └─────────┘            │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                   结果生成层                         │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐            │   │
+│  │  │ 答案综合 │  │ 来源标注 │  │ 可信度评估│            │   │
+│  │  └─────────┘  └─────────┘  └─────────┘            │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+
+<h3>16.1.3 搜索能力实现方案</h3>
+
+<h4>方案一：向量检索引擎</h4>
+
+<p>2026年最主流的方案，基于Embedding向量的语义检索：</p>
+
+<pre><code>class VectorSearchEngine:
+    &quot;&quot;&quot;向量检索引擎&quot;&quot;&quot;
+    
+    def __init__(self, embedding_model, vector_db):
+        self.embedding_model = embedding_model  # 2026年主流：多模态Embedding模型
+        self.vector_db = vector_db             # 如Milvus、Pinecone、Qdrant
+    
+    def index_documents(self, documents):
+        &quot;&quot;&quot;索引文档&quot;&quot;&quot;
+        # 多模态Embedding（文本、图像、表格统一向量空间）
+        embeddings = []
+        for doc in documents:
+            if doc.type == &quot;text&quot;:
+                emb = self.embedding_model.encode_text(doc.content)
+            elif doc.type == &quot;image&quot;:
+                emb = self.embedding_model.encode_image(doc.content)
+            elif doc.type == &quot;table&quot;:
+                emb = self.embedding_model.encode_table(doc.content)
+            elif doc.type == &quot;mixed&quot;:
+                emb = self.embedding_model.encode_multimodal(doc.content)
+            
+            embeddings.append({
+                &quot;id&quot;: doc.id,
+                &quot;vector&quot;: emb,
+                &quot;metadata&quot;: doc.metadata
+            })
+        
+        # 批量写入向量数据库
+        self.vector_db.insert(embeddings)
+    
+    def search(self, query, top_k=10, filters=None):
+        &quot;&quot;&quot;多模态搜索&quot;&quot;&quot;
+        # 查询向量化（自动识别查询类型）
+        if self._is_image_query(query):
+            query_vector = self.embedding_model.encode_image(query)
+        elif self._is_audio_query(query):
+            query_vector = self.embedding_model.encode_audio(query)
+        else:
+            query_vector = self.embedding_model.encode_text(query)
+        
+        # 向量检索
+        results = self.vector_db.search(
+            query_vector=query_vector,
+            top_k=top_k,
+            filter_conditions=filters
+        )
+        
+        return results
+    
+    def hybrid_search(self, query, alpha=0.7):
+        &quot;&quot;&quot;混合检索：向量+关键词&quot;&quot;&quot;
+        # 向量检索
+        vector_results = self.search(query, top_k=20)
+        
+        # 关键词检索（BM25）
+        keyword_results = self.keyword_search(query, top_k=20)
+        
+        # 融合排序（RRF算法）
+        final_results = self._reciprocal_rank_fusion(
+            vector_results, keyword_results, alpha
+        )
+        
+        return final_results[:10]</code></pre>
+
+<h4>方案二：联网实时搜索</h4>
+
+<p>2026年的Agent标配能力，突破知识截止日期限制：</p>
+
+<pre><code>class RealTimeSearchEngine:
+    &quot;&quot;&quot;联网实时搜索引擎&quot;&quot;&quot;
+    
+    def __init__(self, search_api, content_extractor):
+        self.search_api = search_api  # 如Brave Search、Bing、Google Custom Search
+        self.content_extractor = content_extractor
+        self.cache = TTLCache(maxsize=1000, ttl=3600)  # 1小时缓存
+    
+    def search(self, query, freshness=&quot;day&quot;):
+        &quot;&quot;&quot;实时搜索&quot;&quot;&quot;
+        # 检查缓存
+        cache_key = f&quot;{query}:{freshness}&quot;
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        
+        # 调用搜索API
+        search_results = self.search_api.search(
+            query=query,
+            freshness=freshness,  # day/week/month
+            count=10
+        )
+        
+        # 提取并清洗内容
+        enriched_results = []
+        for result in search_results:
+            # 抓取页面内容
+            content = self.content_extractor.extract(result.url)
+            
+            enriched_results.append({
+                &quot;title&quot;: result.title,
+                &quot;url&quot;: result.url,
+                &quot;snippet&quot;: result.snippet,
+                &quot;content&quot;: content,
+                &quot;published_date&quot;: result.published_date,
+                &quot;source&quot;: result.source,
+                &quot;credibility_score&quot;: self._assess_credibility(result)
+            })
+        
+        # 缓存结果
+        self.cache[cache_key] = enriched_results
+        
+        return enriched_results
+    
+    def search_with_verification(self, query):
+        &quot;&quot;&quot;带事实核查的搜索&quot;&quot;&quot;
+        results = self.search(query)
+        
+        # 多源交叉验证
+        verified_results = []
+        for result in results:
+            # 查找相关来源
+            related_sources = self._find_related_sources(result)
+            
+            # 验证一致性
+            consistency_score = self._verify_consistency(result, related_sources)
+            
+            if consistency_score &gt; 0.7:
+                result[&quot;verified&quot;] = True
+                result[&quot;consistency_score&quot;] = consistency_score
+                verified_results.append(result)
+        
+        return verified_results</code></pre>
+
+<h4>方案三：知识图谱检索</h4>
+
+<p>构建结构化知识网络，支持复杂推理：</p>
+
+<pre><code>class KnowledgeGraphSearch:
+    &quot;&quot;&quot;知识图谱检索引擎&quot;&quot;&quot;
+    
+    def __init__(self, graph_db, llm):
+        self.graph_db = graph_db  # Neo4j、Nebula等
+        self.llm = llm
+    
+    def search_with_reasoning(self, query):
+        &quot;&quot;&quot;推理式搜索&quot;&quot;&quot;
+        # 1. 实体识别
+        entities = self._extract_entities(query)
+        
+        # 2. 关系抽取
+        relations = self._extract_relations(query)
+        
+        # 3. 图谱查询
+        graph_results = self._query_graph(entities, relations)
+        
+        # 4. 路径推理
+        reasoning_paths = self._find_reasoning_paths(graph_results)
+        
+        # 5. 答案生成
+        answer = self._generate_answer(query, reasoning_paths)
+        
+        return {
+            &quot;answer&quot;: answer,
+            &quot;entities&quot;: entities,
+            &quot;reasoning_paths&quot;: reasoning_paths,
+            &quot;evidence&quot;: graph_results
+        }
+    
+    def _query_graph(self, entities, relations):
+        &quot;&quot;&quot;图数据库查询&quot;&quot;&quot;
+        cypher_query = self._build_cypher(entities, relations)
+        results = self.graph_db.run(cypher_query)
+        return results
+    
+    def _find_reasoning_paths(self, graph_results):
+        &quot;&quot;&quot;发现推理路径&quot;&quot;&quot;
+        paths = []
+        
+        for result in graph_results:
+            # 计算最短路径
+            path = self.graph_db.shortest_path(
+                start_node=result.start,
+                end_node=result.end,
+                max_depth=3
+            )
+            
+            if path:
+                paths.append({
+                    &quot;nodes&quot;: path.nodes,
+                    &quot;relationships&quot;: path.relationships,
+                    &quot;reasoning&quot;: self._explain_path(path)
+                })
+        
+        return paths</code></pre>
+
+<h3>16.1.4 搜索能力最佳实践</h3>
+
+<table><tr><th>场景</th><th>推荐方案</th><th>关键配置</th></tr><tr><td>内部知识库查询</td><td>向量检索</td><td>选择合适的Chunk大小(512-1024)，建立分层索引</td></tr><tr><td>实时新闻资讯</td><td>联网搜索</td><td>设置时效性过滤，启用多源验证</td></tr><tr><td>复杂关系查询</td><td>知识图谱</td><td>构建本体模型，维护实体关系</td></tr><tr><td>多媒体内容检索</td><td>多模态检索</td><td>使用统一向量空间，支持跨模态检索</td></tr></table>
+<hr>
+
+<h2>16.2 环境感知与信息获取</h2>
+
+<h3>16.2.1 感知能力的核心价值</h3>
+
+<p>搜索是主动获取信息，而感知是被动接收环境变化。一个优秀的Agent需要具备敏锐的环境感知能力：</p>
+
+<strong>感知能力的三层含义</strong>：
+
+<ol>
+<li><strong>环境感知</strong>：了解当前所处环境（时间、地点、上下文）</li>
+<li><strong>状态感知</strong>：识别任务和系统的当前状态</li>
+<li><strong>变化感知</strong>：监测环境的动态变化</li>
+</ol>
+
+<strong>感知能力的价值矩阵</strong>：
+
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│                    感知价值矩阵                          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│   高价值 │ ┌──────────────────────┐ ┌──────────────┐ │
+│         │ │ 业务状态感知          │ │ 用户行为感知  │ │
+│         │ │ (库存、订单、风险)    │ │ (意图、偏好)  │ │
+│         │ └──────────────────────┘ └──────────────┘ │
+│         │                                                 │
+│   中价值 │ ┌──────────────────────┐ ┌──────────────┐ │
+│         │ │ 系统状态感知          │ │ 环境因素感知  │ │
+│         │ │ (性能、错误、负载)    │ │ (时间、天气)  │ │
+│         │ └──────────────────────┘ └──────────────┘ │
+│         │                                                 │
+│   低价值 │ ┌──────────────────────┐ ┌──────────────┐ │
+│         │ │ 基础上下文感知        │ │ 静态信息感知  │ │
+│         │ │ (会话、设备)          │ │ (配置、规则)  │ │
+│         │ └──────────────────────┘ └──────────────┘ │
+│         │                                                 │
+│         └────────────────────────────────────────────► │
+│                   感知复杂度                              │
+└─────────────────────────────────────────────────────────┘</code></pre>
+
+<h3>16.2.2 感知系统架构设计</h3>
+
+<pre><code>class PerceptionSystem:
+    &quot;&quot;&quot;Agent感知系统&quot;&quot;&quot;
+    
+    def __init__(self):
+        self.sensors = {}           # 感知器注册表
+        self.context = {}           # 当前感知上下文
+        self.change_listeners = []  # 变化监听器
+        self.perception_history = []  # 感知历史
+    
+    def register_sensor(self, name, sensor, interval=None):
+        &quot;&quot;&quot;注册感知器&quot;&quot;&quot;
+        self.sensors[name] = {
+            &quot;sensor&quot;: sensor,
+            &quot;interval&quot;: interval,
+            &quot;last_reading&quot;: None
+        }
+    
+    def perceive_all(self):
+        &quot;&quot;&quot;全面感知&quot;&quot;&quot;
+        perceptions = {}
+        
+        for name, config in self.sensors.items():
+            sensor = config[&quot;sensor&quot;]
+            
+            # 执行感知
+            reading = sensor.read()
+            
+            # 检测变化
+            if config[&quot;last_reading&quot;] is not None:
+                changes = self._detect_changes(config[&quot;last_reading&quot;], reading)
+                if changes:
+                    self._notify_change(name, changes)
+            
+            # 更新记录
+            config[&quot;last_reading&quot;] = reading
+            perceptions[name] = reading
+        
+        # 更新上下文
+        self.context.update(perceptions)
+        
+        # 记录历史
+        self.perception_history.append({
+            &quot;timestamp&quot;: datetime.now(),
+            &quot;perceptions&quot;: perceptions
+        })
+        
+        return perceptions
+    
+    def _detect_changes(self, old, new):
+        &quot;&quot;&quot;检测变化&quot;&quot;&quot;
+        changes = []
+        
+        for key in set(old.keys()) | set(new.keys()):
+            old_val = old.get(key)
+            new_val = new.get(key)
+            
+            if old_val != new_val:
+                changes.append({
+                    &quot;field&quot;: key,
+                    &quot;old&quot;: old_val,
+                    &quot;new&quot;: new_val,
+                    &quot;change_type&quot;: self._classify_change(old_val, new_val)
+                })
+        
+        return changes if changes else None
+    
+    def _notify_change(self, sensor_name, changes):
+        &quot;&quot;&quot;通知变化&quot;&quot;&quot;
+        for listener in self.change_listeners:
+            listener.on_change(sensor_name, changes)
+    
+    def get_context(self):
+        &quot;&quot;&quot;获取当前上下文&quot;&quot;&quot;
+        return self.context.copy()
+
+<p>class Sensor:
+    &quot;&quot;&quot;感知器基类&quot;&quot;&quot;
+    
+    def read(self):
+        &quot;&quot;&quot;读取感知数据&quot;&quot;&quot;
+        raise NotImplementedError</p>
+
+<p>class TimeSensor(Sensor):
+    &quot;&quot;&quot;时间感知器&quot;&quot;&quot;
+    
+    def read(self):
+        now = datetime.now()
+        return {
+            &quot;timestamp&quot;: now.isoformat(),
+            &quot;hour&quot;: now.hour,
+            &quot;day_of_week&quot;: now.weekday(),
+            &quot;is_workday&quot;: now.weekday() &lt; 5,
+            &quot;is_business_hours&quot;: 9 &lt;= now.hour &lt; 18,
+            &quot;time_period&quot;: self._get_time_period(now.hour)
+        }
+    
+    def _get_time_period(self, hour):
+        if 5 &lt;= hour &lt; 12:
+            return &quot;morning&quot;
+        elif 12 &lt;= hour &lt; 14:
+            return &quot;noon&quot;
+        elif 14 &lt;= hour &lt; 18:
+            return &quot;afternoon&quot;
+        elif 18 &lt;= hour &lt; 22:
+            return &quot;evening&quot;
+        else:
+            return &quot;night&quot;</p>
+
+<p>class UserContextSensor(Sensor):
+    &quot;&quot;&quot;用户上下文感知器&quot;&quot;&quot;
+    
+    def __init__(self, user_profile_db):
+        self.db = user_profile_db
+    
+    def read(self, user_id):
+        profile = self.db.get_user(user_id)
+        return {
+            &quot;user_id&quot;: user_id,
+            &quot;preferences&quot;: profile.get(&quot;preferences&quot;, {}),
+            &quot;recent_activities&quot;: profile.get(&quot;recent_activities&quot;, [])[:10],
+            &quot;active_projects&quot;: profile.get(&quot;active_projects&quot;, []),
+            &quot;role&quot;: profile.get(&quot;role&quot;),
+            &quot;timezone&quot;: profile.get(&quot;timezone&quot;, &quot;UTC&quot;)
+        }</p>
+
+<p>class SystemStatusSensor(Sensor):
+    &quot;&quot;&quot;系统状态感知器&quot;&quot;&quot;
+    
+    def read(self):
+        return {
+            &quot;cpu_usage&quot;: psutil.cpu_percent(),
+            &quot;memory_usage&quot;: psutil.virtual_memory().percent,
+            &quot;disk_usage&quot;: psutil.disk_usage(&#039;/&#039;).percent,
+            &quot;active_connections&quot;: self._get_connection_count(),
+            &quot;error_rate&quot;: self._get_recent_error_rate(),
+            &quot;response_time_avg&quot;: self._get_avg_response_time()
+        }</p>
+
+<p>class BusinessMetricsSensor(Sensor):
+    &quot;&quot;&quot;业务指标感知器&quot;&quot;&quot;
+    
+    def __init__(self, metrics_api):
+        self.api = metrics_api
+    
+    def read(self):
+        return {
+            &quot;active_users&quot;: self.api.get_active_users(),
+            &quot;orders_pending&quot;: self.api.get_pending_orders(),
+            &quot;inventory_alerts&quot;: self.api.get_inventory_alerts(),
+            &quot;revenue_today&quot;: self.api.get_today_revenue(),
+            &quot;anomaly_count&quot;: self.api.get_anomaly_count()
+        }</code></pre></p>
+
+<h3>16.2.3 事件驱动感知架构</h3>
+
+<p>对于需要实时响应的场景，采用事件驱动架构：</p>
+
+<pre><code>class EventDrivenPerception:
+    &quot;&quot;&quot;事件驱动感知系统&quot;&quot;&quot;
+    
+    def __init__(self):
+        self.event_handlers = {}
+        self.event_queue = Queue()
+        self.is_running = False
+    
+    def subscribe(self, event_type, handler):
+        &quot;&quot;&quot;订阅事件&quot;&quot;&quot;
+        if event_type not in self.event_handlers:
+            self.event_handlers[event_type] = []
+        self.event_handlers[event_type].append(handler)
+    
+    def publish(self, event):
+        &quot;&quot;&quot;发布事件&quot;&quot;&quot;
+        self.event_queue.put(event)
+    
+    def start(self):
+        &quot;&quot;&quot;启动事件循环&quot;&quot;&quot;
+        self.is_running = True
+        while self.is_running:
+            try:
+                event = self.event_queue.get(timeout=1)
+                self._process_event(event)
+            except Empty:
+                continue
+    
+    def _process_event(self, event):
+        &quot;&quot;&quot;处理事件&quot;&quot;&quot;
+        handlers = self.event_handlers.get(event.type, [])
+        
+        for handler in handlers:
+            try:
+                handler.handle(event)
+            except Exception as e:
+                self._log_error(event, e)
+
+<h1>事件类型定义</h1>
+class Event:
+    def __init__(self, type, data, timestamp=None):
+        self.type = type
+        self.data = data
+        self.timestamp = timestamp or datetime.now()
+
+<h1>具体事件处理器</h1>
+class UrgentTaskHandler:
+    &quot;&quot;&quot;紧急任务处理器&quot;&quot;&quot;
+    
+    def handle(self, event):
+        task = event.data
+        
+        # 感知到紧急任务，立即响应
+        if task.priority == &quot;urgent&quot;:
+            # 通知相关人员
+            self._notify_stakeholders(task)
+            
+            # 调整优先级队列
+            self._prioritize_task(task)
+            
+            # 记录感知日志
+            self._log_perception(event)
+
+<p>class InventoryAlertHandler:
+    &quot;&quot;&quot;库存告警处理器&quot;&quot;&quot;
+    
+    def handle(self, event):
+        alert = event.data
+        
+        # 感知库存异常
+        if alert.level == &quot;critical&quot;:
+            # 自动创建补货任务
+            self._create_replenishment_task(alert)
+            
+            # 通知采购团队
+            self._notify_procurement(alert)</code></pre></p>
+
+<h3>16.2.4 感知能力实战案例</h3>
+
+<strong>案例：智能客服场景感知</strong>
+
+<pre><code>class CustomerServicePerception:
+    &quot;&quot;&quot;客服场景感知系统&quot;&quot;&quot;
+    
+    def __init__(self):
+        self.perception = PerceptionSystem()
+        self._setup_sensors()
+    
+    def _setup_sensors(self):
+        &quot;&quot;&quot;设置感知器&quot;&quot;&quot;
+        
+        # 时间感知
+        self.perception.register_sensor(&quot;time&quot;, TimeSensor())
+        
+        # 用户上下文感知
+        self.perception.register_sensor(
+            &quot;user_context&quot;,
+            UserContextSensor(user_db)
+        )
+        
+        # 客服系统状态感知
+        self.perception.register_sensor(
+            &quot;system_status&quot;,
+            SystemStatusSensor()
+        )
+        
+        # 业务指标感知
+        self.perception.register_sensor(
+            &quot;business_metrics&quot;,
+            BusinessMetricsSensor(metrics_api)
+        )
+        
+        # 队列状态感知
+        self.perception.register_sensor(
+            &quot;queue_status&quot;,
+            QueueStatusSensor(queue_api)
+        )
+    
+    def get_service_context(self, user_id):
+        &quot;&quot;&quot;获取服务上下文&quot;&quot;&quot;
+        perceptions = self.perception.perceive_all()
+        user_context = self.perception.sensors[&quot;user_context&quot;][&quot;sensor&quot;].read(user_id)
+        
+        return {
+            # 时间上下文
+            &quot;is_business_hours&quot;: perceptions[&quot;time&quot;][&quot;is_business_hours&quot;],
+            &quot;time_period&quot;: perceptions[&quot;time&quot;][&quot;time_period&quot;],
+            
+            # 用户上下文
+            &quot;user_preferences&quot;: user_context[&quot;preferences&quot;],
+            &quot;user_history&quot;: user_context[&quot;recent_activities&quot;],
+            &quot;user_role&quot;: user_context[&quot;role&quot;],
+            
+            # 系统上下文
+            &quot;system_load&quot;: perceptions[&quot;system_status&quot;][&quot;cpu_usage&quot;],
+            &quot;response_time&quot;: perceptions[&quot;system_status&quot;][&quot;response_time_avg&quot;],
+            
+            # 业务上下文
+            &quot;queue_length&quot;: perceptions[&quot;queue_status&quot;][&quot;length&quot;],
+            &quot;wait_time&quot;: perceptions[&quot;queue_status&quot;][&quot;estimated_wait_time&quot;],
+            
+            # 决策建议
+            &quot;recommendations&quot;: self._generate_recommendations(perceptions, user_context)
+        }
+    
+    def _generate_recommendations(self, perceptions, user_context):
+        &quot;&quot;&quot;基于感知生成决策建议&quot;&quot;&quot;
+        recommendations = []
+        
+        # 非工作时间建议
+        if not perceptions[&quot;time&quot;][&quot;is_business_hours&quot;]:
+            recommendations.append({
+                &quot;type&quot;: &quot;timing&quot;,
+                &quot;suggestion&quot;: &quot;非工作时间，可引导用户使用自助服务&quot;,
+                &quot;priority&quot;: &quot;medium&quot;
+            })
+        
+        # 高负载建议
+        if perceptions[&quot;system_status&quot;][&quot;cpu_usage&quot;] &gt; 80:
+            recommendations.append({
+                &quot;type&quot;: &quot;system&quot;,
+                &quot;suggestion&quot;: &quot;系统负载较高，建议简化回复&quot;,
+                &quot;priority&quot;: &quot;high&quot;
+            })
+        
+        # VIP用户建议
+        if user_context[&quot;role&quot;] == &quot;vip&quot;:
+            recommendations.append({
+                &quot;type&quot;: &quot;user&quot;,
+                &quot;suggestion&quot;: &quot;VIP用户，优先服务，提供专属优惠&quot;,
+                &quot;priority&quot;: &quot;high&quot;
+            })
+        
+        return recommendations</code></pre>
+
+<hr>
+
+<h2>16.3 记忆系统设计</h2>
+
+<h3>16.3.1 为什么Agent需要记忆？</h3>
+
+<p>记忆是Agent从"一次性交互"升级为"长期关系"的关键能力。没有记忆的Agent就像一个健忘的员工，每次对话都从零开始，无法积累经验，无法理解用户偏好，无法提供个性化服务。</p>
+
+<strong>记忆系统的核心价值</strong>：
+
+<table><tr><th>记忆类型</th><th>价值体现</th><th>典型应用</th></tr><tr><td>短期记忆</td><td>保持上下文连贯</td><td>多轮对话、任务执行</td></tr><tr><td>工作记忆</td><td>支持复杂推理</td><td>长文档处理、代码生成</td></tr><tr><td>长期记忆</td><td>个性化、经验积累</td><td>用户偏好、知识沉淀</td></tr><tr><td>情景记忆</td><td>理解历史情境</td><td>项目复盘、学习改进</td></tr></table>
+<h3>16.3.2 记忆系统架构（2026版）</h3>
+
+<p>2026年的记忆系统已形成完整的架构框架，以OpenClaw为代表的产品实现了会话记忆和用户偏好持久化，成为行业标杆。</p>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                    Agent记忆系统架构                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                      感知输入层                          │   │
+│  │   用户输入 │ 系统事件 │ 环境变化 │ 任务执行结果          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                            │                                     │
+│                            ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                      记忆编码层                          │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │   │
+│  │  │ 重要性  │  │ 情感值  │  │ 时效性  │  │ 关联度  │    │   │
+│  │  │ 评估   │  │  评估   │  │  评估   │  │  评估   │    │   │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                            │                                     │
+│                            ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    三层存储系统                          │   │
+│  │                                                         │   │
+│  │  ┌─────────────────────────────────────────────────┐   │   │
+│  │  │ 短期记忆 (Short-Term Memory)                     │   │   │
+│  │  │ - 容量：有限（~10个信息块）                       │   │   │
+│  │  │ - 时效：秒到分钟级                                │   │   │
+│  │  │ - 存储：当前会话上下文                            │   │   │
+│  │  │ - 技术：滑动窗口、摘要压缩                        │   │   │
+│  │  └─────────────────────────────────────────────────┘   │   │
+│  │                         │                               │   │
+│  │                         ▼                               │   │
+│  │  ┌─────────────────────────────────────────────────┐   │   │
+│  │  │ 工作记忆 (Working Memory)                       │   │   │
+│  │  │ - 容量：中等（~100个信息块）                      │   │   │
+│  │  │ - 时效：分钟到小时级                             │   │   │
+│  │  │ - 存储：当前任务相关信息                          │   │   │
+│  │  │ - 技术：注意力机制、动态检索                     │   │   │
+│  │  └─────────────────────────────────────────────────┘   │   │
+│  │                         │                               │   │
+│  │                         ▼                               │   │
+│  │  ┌─────────────────────────────────────────────────┐   │   │
+│  │  │ 长期记忆 (Long-Term Memory)                      │   │   │
+│  │  │ - 容量：近乎无限                                 │   │   │
+│  │  │ - 时效：永久存储                                 │   │   │
+│  │  │ - 存储：用户偏好、知识、经验                     │   │   │
+│  │  │ - 技术：向量数据库、知识图谱、关系型数据库       │   │   │
+│  │  └─────────────────────────────────────────────────┘   │   │
+│  │                                                         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                            │                                     │
+│                            ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                      记忆检索层                          │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │   │
+│  │  │ 向量    │  │ 关键词  │  │ 时间    │  │ 关联    │    │   │
+│  │  │ 检索   │  │ 检索   │  │ 检索   │  │ 检索   │    │   │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                            │                                     │
+│                            ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                      记忆更新层                          │   │
+│  │   遗忘机制 │ 巩固机制 │ 更新机制 │ 迁移机制              │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+
+<h3>16.3.3 记忆系统实现</h3>
+
+<h4>短期记忆实现</h4>
+
+<pre><code>class ShortTermMemory:
+    &quot;&quot;&quot;短期记忆系统&quot;&quot;&quot;
+    
+    def __init__(self, max_items=10, max_tokens=4000):
+        self.max_items = max_items
+        self.max_tokens = max_tokens
+        self.memory = []
+        self.token_counter = TokenCounter()
+    
+    def add(self, content, metadata=None):
+        &quot;&quot;&quot;添加记忆&quot;&quot;&quot;
+        item = {
+            &quot;content&quot;: content,
+            &quot;metadata&quot;: metadata or {},
+            &quot;timestamp&quot;: datetime.now(),
+            &quot;token_count&quot;: self.token_counter.count(content)
+        }
+        
+        self.memory.append(item)
+        self._enforce_limits()
+    
+    def get_context(self, token_limit=None):
+        &quot;&quot;&quot;获取上下文&quot;&quot;&quot;
+        token_limit = token_limit or self.max_tokens
+        context = []
+        total_tokens = 0
+        
+        # 从最新的记忆开始
+        for item in reversed(self.memory):
+            if total_tokens + item[&quot;token_count&quot;] &gt; token_limit:
+                break
+            context.insert(0, item)
+            total_tokens += item[&quot;token_count&quot;]
+        
+        return context
+    
+    def summarize_and_compress(self):
+        &quot;&quot;&quot;摘要压缩&quot;&quot;&quot;
+        if len(self.memory) &gt; self.max_items:
+            # 对旧记忆进行摘要
+            old_items = self.memory[:-self.max_items//2]
+            summary = self._create_summary(old_items)
+            
+            # 用摘要替换旧记忆
+            self.memory = [
+                {&quot;content&quot;: summary, &quot;metadata&quot;: {&quot;type&quot;: &quot;summary&quot;}, 
+                 &quot;timestamp&quot;: datetime.now(), &quot;token_count&quot;: self.token_counter.count(summary)}
+            ] + self.memory[-self.max_items//2:]
+    
+    def _enforce_limits(self):
+        &quot;&quot;&quot;执行限制&quot;&quot;&quot;
+        # 容量限制
+        while len(self.memory) &gt; self.max_items <em> 1.5:
+            self.summarize_and_compress()
+        
+        # Token限制
+        total_tokens = sum(item[&quot;token_count&quot;] for item in self.memory)
+        if total_tokens &gt; self.max_tokens </em> 1.2:
+            self.summarize_and_compress()
+    
+    def _create_summary(self, items):
+        &quot;&quot;&quot;创建摘要&quot;&quot;&quot;
+        # 使用LLM创建摘要
+        text = &quot;\n&quot;.join([item[&quot;content&quot;] for item in items])
+        summary = self._llm_summarize(text)
+        return summary</code></pre>
+
+<h4>工作记忆实现</h4>
+
+<pre><code>class WorkingMemory:
+    &quot;&quot;&quot;工作记忆系统&quot;&quot;&quot;
+    
+    def __init__(self, embedding_model, vector_store):
+        self.embedding_model = embedding_model
+        self.vector_store = vector_store
+        self.active_items = {}
+        self.attention_weights = {}
+    
+    def activate(self, item_id, content, relevance_score=1.0):
+        &quot;&quot;&quot;激活记忆项&quot;&quot;&quot;
+        embedding = self.embedding_model.encode(content)
+        
+        self.active_items[item_id] = {
+            &quot;content&quot;: content,
+            &quot;embedding&quot;: embedding,
+            &quot;activation_time&quot;: datetime.now(),
+            &quot;relevance_score&quot;: relevance_score,
+            &quot;access_count&quot;: 1
+        }
+        
+        self._update_attention(item_id, relevance_score)
+    
+    def retrieve_relevant(self, query, top_k=5):
+        &quot;&quot;&quot;检索相关记忆&quot;&quot;&quot;
+        query_embedding = self.embedding_model.encode(query)
+        
+        # 计算相似度
+        similarities = []
+        for item_id, item in self.active_items.items():
+            similarity = cosine_similarity(query_embedding, item[&quot;embedding&quot;])
+            # 考虑注意力权重
+            weighted_similarity = similarity <em> self.attention_weights.get(item_id, 1.0)
+            similarities.append((item_id, weighted_similarity, item))
+        
+        # 排序返回
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return [(item_id, item, score) for item_id, score, item in similarities[:top_k]]
+    
+    def update_attention(self, item_id, delta=0.1):
+        &quot;&quot;&quot;更新注意力权重&quot;&quot;&quot;
+        if item_id in self.attention_weights:
+            self.attention_weights[item_id] += delta
+            # 更新访问计数
+            if item_id in self.active_items:
+                self.active_items[item_id][&quot;access_count&quot;] += 1
+    
+    def _update_attention(self, item_id, initial_weight):
+        &quot;&quot;&quot;更新注意力权重&quot;&quot;&quot;
+        self.attention_weights[item_id] = initial_weight
+        
+        # 重新分配注意力
+        total_weight = sum(self.attention_weights.values())
+        for key in self.attention_weights:
+            self.attention_weights[key] /= total_weight
+    
+    def decay(self, decay_rate=0.1):
+        &quot;&quot;&quot;记忆衰减&quot;&quot;&quot;
+        current_time = datetime.now()
+        to_remove = []
+        
+        for item_id, item in self.active_items.items():
+            # 计算时间衰减
+            time_elapsed = (current_time - item[&quot;activation_time&quot;]).total_seconds()
+            decay_factor = math.exp(-decay_rate </em> time_elapsed / 3600)  # 小时为单位
+            
+            # 更新注意力权重
+            self.attention_weights[item_id] <em>= decay_factor
+            
+            # 如果权重过低，标记删除
+            if self.attention_weights[item_id] &lt; 0.1:
+                to_remove.append(item_id)
+        
+        # 移除低权重记忆
+        for item_id in to_remove:
+            del self.active_items[item_id]
+            del self.attention_weights[item_id]</code></pre>
+
+<h4>长期记忆实现</h4>
+
+<pre><code>class LongTermMemory:
+    &quot;&quot;&quot;长期记忆系统 - 2026版&quot;&quot;&quot;
+    
+    def __init__(self, vector_db, graph_db, relational_db):
+        self.vector_db = vector_db      # 向量存储（语义检索）
+        self.graph_db = graph_db        # 图数据库（关系存储）
+        self.relational_db = relational_db  # 关系型数据库（结构化存储）
+        
+        # OpenClaw 2026特性：用户偏好持久化
+        self.user_preferences = {}
+    
+    def store(self, memory_item):
+        &quot;&quot;&quot;存储记忆&quot;&quot;&quot;
+        # 1. 编码记忆
+        encoded = self._encode_memory(memory_item)
+        
+        # 2. 存储到向量数据库（语义检索）
+        self.vector_db.insert([{
+            &quot;id&quot;: encoded[&quot;id&quot;],
+            &quot;vector&quot;: encoded[&quot;embedding&quot;],
+            &quot;metadata&quot;: encoded[&quot;metadata&quot;]
+        }])
+        
+        # 3. 存储到图数据库（关系网络）
+        self._store_to_graph(encoded)
+        
+        # 4. 存储到关系数据库（结构化数据）
+        self._store_to_relational(encoded)
+        
+        # 5. 更新用户偏好（OpenClaw特性）
+        if memory_item.get(&quot;user_id&quot;):
+            self._update_user_preference(memory_item[&quot;user_id&quot;], memory_item)
+        
+        return encoded[&quot;id&quot;]
+    
+    def retrieve(self, query, filters=None, top_k=10):
+        &quot;&quot;&quot;检索记忆&quot;&quot;&quot;
+        # 向量检索
+        query_embedding = self._encode_query(query)
+        vector_results = self.vector_db.search(
+            query_vector=query_embedding,
+            top_k=top_k </em> 2,
+            filter_conditions=filters
+        )
+        
+        # 图谱检索（关联记忆）
+        graph_results = self._retrieve_from_graph(query, filters)
+        
+        # 融合结果
+        merged_results = self._merge_results(vector_results, graph_results)
+        
+        # 排序并返回
+        return merged_results[:top_k]
+    
+    def update(self, memory_id, updates):
+        &quot;&quot;&quot;更新记忆&quot;&quot;&quot;
+        # 获取现有记忆
+        existing = self._get_memory(memory_id)
+        
+        # 合并更新
+        updated = {<strong>existing, </strong>updates}
+        updated[&quot;last_updated&quot;] = datetime.now()
+        updated[&quot;version&quot;] = existing.get(&quot;version&quot;, 1) + 1
+        
+        # 更新各存储
+        self.vector_db.update(memory_id, updated)
+        self._update_graph(memory_id, updated)
+        self._update_relational(memory_id, updated)
+    
+    def forget(self, memory_id, forget_strategy=&quot;soft&quot;):
+        &quot;&quot;&quot;遗忘记忆&quot;&quot;&quot;
+        if forget_strategy == &quot;soft&quot;:
+            # 软删除：标记为已遗忘但保留数据
+            self.update(memory_id, {&quot;forgotten&quot;: True})
+        elif forget_strategy == &quot;hard&quot;:
+            # 硬删除：完全移除
+            self.vector_db.delete(memory_id)
+            self._delete_from_graph(memory_id)
+            self._delete_from_relational(memory_id)
+        elif forget_strategy == &quot;archive&quot;:
+            # 归档：移到冷存储
+            self._archive_memory(memory_id)
+    
+    # ========== OpenClaw 2026特性：用户偏好持久化 ==========
+    
+    def get_user_preference(self, user_id, category=None):
+        &quot;&quot;&quot;获取用户偏好&quot;&quot;&quot;
+        if user_id not in self.user_preferences:
+            # 从数据库加载
+            self.user_preferences[user_id] = self._load_user_preferences(user_id)
+        
+        preferences = self.user_preferences[user_id]
+        
+        if category:
+            return preferences.get(category, {})
+        return preferences
+    
+    def _update_user_preference(self, user_id, memory_item):
+        &quot;&quot;&quot;更新用户偏好（从记忆中学习）&quot;&quot;&quot;
+        if user_id not in self.user_preferences:
+            self.user_preferences[user_id] = {
+                &quot;topics&quot;: {},      # 主题偏好
+                &quot;styles&quot;: {},     # 风格偏好
+                &quot;times&quot;: {},      # 时间偏好
+                &quot;behaviors&quot;: {}   # 行为偏好
+            }
+        
+        preferences = self.user_preferences[user_id]
+        
+        # 分析记忆并更新偏好
+        if &quot;topic&quot; in memory_item:
+            topic = memory_item[&quot;topic&quot;]
+            preferences[&quot;topics&quot;][topic] = preferences[&quot;topics&quot;].get(topic, 0) + 1
+        
+        if &quot;style&quot; in memory_item:
+            style = memory_item[&quot;style&quot;]
+            preferences[&quot;styles&quot;][style] = preferences[&quot;styles&quot;].get(style, 0) + 1
+        
+        # 持久化存储
+        self._save_user_preferences(user_id, preferences)
+    
+    def _encode_memory(self, memory_item):
+        &quot;&quot;&quot;编码记忆&quot;&quot;&quot;
+        memory_id = str(uuid.uuid4())
+        
+        # 创建Embedding
+        text_for_embedding = self._create_text_for_embedding(memory_item)
+        embedding = self._get_embedding(text_for_embedding)
+        
+        return {
+            &quot;id&quot;: memory_id,
+            &quot;content&quot;: memory_item.get(&quot;content&quot;),
+            &quot;embedding&quot;: embedding,
+            &quot;metadata&quot;: {
+                &quot;type&quot;: memory_item.get(&quot;type&quot;, &quot;general&quot;),
+                &quot;importance&quot;: memory_item.get(&quot;importance&quot;, 0.5),
+                &quot;emotion&quot;: memory_item.get(&quot;emotion&quot;, 0),
+                &quot;timestamp&quot;: datetime.now().isoformat(),
+                &quot;user_id&quot;: memory_item.get(&quot;user_id&quot;),
+                &quot;session_id&quot;: memory_item.get(&quot;session_id&quot;),
+                &quot;tags&quot;: memory_item.get(&quot;tags&quot;, [])
+            }
+        }</code></pre>
+
+<h3>16.3.4 记忆的检索与更新策略</h3>
+
+<h4>检索策略</h4>
+
+<pre><code>class MemoryRetrievalStrategy:
+    &quot;&quot;&quot;记忆检索策略&quot;&quot;&quot;
+    
+    def __init__(self, memory_system):
+        self.memory = memory_system
+    
+    def retrieve_by_relevance(self, query, top_k=10):
+        &quot;&quot;&quot;相关性检索&quot;&quot;&quot;
+        return self.memory.vector_db.search(query, top_k=top_k)
+    
+    def retrieve_by_recency(self, time_range, top_k=10):
+        &quot;&quot;&quot;时间检索&quot;&quot;&quot;
+        filters = {
+            &quot;timestamp&quot;: {
+                &quot;$gte&quot;: time_range[&quot;start&quot;],
+                &quot;$lte&quot;: time_range[&quot;end&quot;]
+            }
+        }
+        return self.memory.vector_db.search(None, filters=filters, top_k=top_k)
+    
+    def retrieve_by_importance(self, min_importance=0.7, top_k=10):
+        &quot;&quot;&quot;重要性检索&quot;&quot;&quot;
+        filters = {&quot;importance&quot;: {&quot;$gte&quot;: min_importance}}
+        return self.memory.vector_db.search(None, filters=filters, top_k=top_k)
+    
+    def retrieve_by_association(self, memory_id, depth=2):
+        &quot;&quot;&quot;关联检索&quot;&quot;&quot;
+        return self.memory.graph_db.get_related_nodes(memory_id, depth=depth)
+    
+    def hybrid_retrieve(self, query, weights=None):
+        &quot;&quot;&quot;混合检索策略&quot;&quot;&quot;
+        weights = weights or {
+            &quot;relevance&quot;: 0.5,
+            &quot;recency&quot;: 0.2,
+            &quot;importance&quot;: 0.2,
+            &quot;association&quot;: 0.1
+        }
+        
+        # 各维度检索
+        relevance_results = self.retrieve_by_relevance(query)
+        recency_results = self.retrieve_by_recency({&quot;start&quot;: datetime.now() - timedelta(days=7), 
+                                                      &quot;end&quot;: datetime.now()})
+        importance_results = self.retrieve_by_importance()
+        
+        # 加权融合
+        all_memories = self._merge_and_weight(
+            relevance_results, recency_results, importance_results,
+            weights
+        )
+        
+        return all_memories</code></pre>
+
+<h4>更新策略</h4>
+
+<pre><code>class MemoryUpdateStrategy:
+    &quot;&quot;&quot;记忆更新策略&quot;&quot;&quot;
+    
+    def __init__(self, memory_system):
+        self.memory = memory_system
+        self.update_rules = self._default_rules()
+    
+    def _default_rules(self):
+        &quot;&quot;&quot;默认更新规则&quot;&quot;&quot;
+        return {
+            # 强化规则：高频访问的记忆重要性增加
+            &quot;reinforce&quot;: {
+                &quot;condition&quot;: lambda m: m.get(&quot;access_count&quot;, 0) &gt; 3,
+                &quot;action&quot;: lambda m: {&quot;importance&quot;: min(m.get(&quot;importance&quot;, 0.5) + 0.1, 1.0)}
+            },
+            # 遗忘规则：长时间未访问的记忆重要性降低
+            &quot;decay&quot;: {
+                &quot;condition&quot;: lambda m: (datetime.now() - m.get(&quot;last_access&quot;, datetime.now())).days &gt; 30,
+                &quot;action&quot;: lambda m: {&quot;importance&quot;: max(m.get(&quot;importance&quot;, 0.5) - 0.1, 0.1)}
+            },
+            # 巩固规则：高情感值的记忆转为长期记忆
+            &quot;consolidate&quot;: {
+                &quot;condition&quot;: lambda m: abs(m.get(&quot;emotion&quot;, 0)) &gt; 0.7,
+                &quot;action&quot;: lambda m: {&quot;memory_type&quot;: &quot;long_term&quot;, &quot;importance&quot;: 0.8}
+            }
+        }
+    
+    def apply_updates(self):
+        &quot;&quot;&quot;应用更新规则&quot;&quot;&quot;
+        # 获取所有记忆
+        all_memories = self.memory.get_all_memories()
+        
+        for memory_id, memory in all_memories.items():
+            for rule_name, rule in self.update_rules.items():
+                if rule[&quot;condition&quot;](memory):
+                    updates = rule[&quot;action&quot;](memory)
+                    self.memory.update(memory_id, updates)
+    
+    def update_from_feedback(self, memory_id, feedback):
+        &quot;&quot;&quot;从反馈中更新&quot;&quot;&quot;
+        memory = self.memory.get_memory(memory_id)
+        
+        if feedback[&quot;type&quot;] == &quot;positive&quot;:
+            # 正向反馈：增加重要性
+            self.memory.update(memory_id, {
+                &quot;importance&quot;: memory[&quot;importance&quot;] + 0.1,
+                &quot;feedback_count&quot;: memory.get(&quot;feedback_count&quot;, 0) + 1
+            })
+        elif feedback[&quot;type&quot;] == &quot;negative&quot;:
+            # 负向反馈：降低重要性
+            self.memory.update(memory_id, {
+                &quot;importance&quot;: max(memory[&quot;importance&quot;] - 0.1, 0.1),
+                &quot;feedback_count&quot;: memory.get(&quot;feedback_count&quot;, 0) + 1
+            })
+        elif feedback[&quot;type&quot;] == &quot;correction&quot;:
+            # 纠正反馈：更新内容
+            self.memory.update(memory_id, {
+                &quot;content&quot;: feedback[&quot;corrected_content&quot;],
+                &quot;corrected&quot;: True
+            })</code></pre>
+
+<hr>
+
+<h2>16.4 实战案例：智能助理记忆系统</h2>
+
+<h3>16.4.1 系统概述</h3>
+
+<p>本节将以一个完整的智能助理记忆系统为例，展示如何将搜索、感知、记忆三大能力整合。该系统参考了OpenClaw 2026的实现，具备以下特性：</p>
+
+<ul>
+<li><strong>会话记忆</strong>：跨会话的上下文保持</li>
+<li><strong>用户偏好持久化</strong>：自动学习和应用用户偏好</li>
+<li><strong>智能搜索</strong>：多模态信息检索</li>
+<li><strong>环境感知</strong>：上下文感知的智能响应</li>
+</ul>
+
+<h3>16.4.2 系统架构</h3>
+
+<pre><code>class IntelligentAssistantMemory:
+    &quot;&quot;&quot;智能助理记忆系统 - 完整实现&quot;&quot;&quot;
+    
+    def __init__(self, config):
+        # 记忆系统
+        self.short_term = ShortTermMemory(max_items=10, max_tokens=4000)
+        self.working = WorkingMemory(config[&quot;embedding_model&quot;], config[&quot;vector_db&quot;])
+        self.long_term = LongTermMemory(
+            config[&quot;vector_db&quot;],
+            config[&quot;graph_db&quot;],
+            config[&quot;relational_db&quot;]
+        )
+        
+        # 搜索系统
+        self.search = MultiModalSearchEngine(config)
+        
+        # 感知系统
+        self.perception = PerceptionSystem()
+        self._setup_perception()
+        
+        # 用户偏好（OpenClaw特性）
+        self.user_preferences = {}
+    
+    def _setup_perception(self):
+        &quot;&quot;&quot;设置感知器&quot;&quot;&quot;
+        self.perception.register_sensor(&quot;time&quot;, TimeSensor())
+        self.perception.register_sensor(&quot;user_context&quot;, UserContextSensor())
+        self.perception.register_sensor(&quot;system&quot;, SystemStatusSensor())
+    
+    def process_input(self, user_input, user_id):
+        &quot;&quot;&quot;处理用户输入&quot;&quot;&quot;
+        # 1. 感知环境
+        context = self.perception.perceive_all()
+        
+        # 2. 检索相关记忆
+        relevant_memories = self._retrieve_memories(user_input, user_id)
+        
+        # 3. 获取用户偏好
+        preferences = self.long_term.get_user_preference(user_id)
+        
+        # 4. 搜索外部信息（如需要）
+        external_info = self._search_if_needed(user_input)
+        
+        # 5. 构建完整上下文
+        full_context = {
+            &quot;user_input&quot;: user_input,
+            &quot;environment&quot;: context,
+            &quot;memories&quot;: relevant_memories,
+            &quot;preferences&quot;: preferences,
+            &quot;external_info&quot;: external_info
+        }
+        
+        # 6. 生成响应
+        response = self._generate_response(full_context)
+        
+        # 7. 更新记忆
+        self._update_memories(user_input, response, user_id)
+        
+        return response
+    
+    def _retrieve_memories(self, query, user_id):
+        &quot;&quot;&quot;检索相关记忆&quot;&quot;&quot;
+        memories = []
+        
+        # 短期记忆（当前会话）
+        short_term = self.short_term.get_context()
+        memories.extend([{&quot;type&quot;: &quot;short_term&quot;, &quot;content&quot;: m} for m in short_term])
+        
+        # 工作记忆（当前任务）
+        working = self.working.retrieve_relevant(query)
+        memories.extend([{&quot;type&quot;: &quot;working&quot;, &quot;content&quot;: m, &quot;score&quot;: s} 
+                        for _, m, s in working])
+        
+        # 长期记忆（历史经验）
+        long_term = self.long_term.retrieve(query, filters={&quot;user_id&quot;: user_id})
+        memories.extend([{&quot;type&quot;: &quot;long_term&quot;, &quot;content&quot;: m} for m in long_term])
+        
+        return memories
+    
+    def _search_if_needed(self, query):
+        &quot;&quot;&quot;判断是否需要搜索外部信息&quot;&quot;&quot;
+        # 分析查询是否需要外部信息
+        need_external = self._analyze_search_need(query)
+        
+        if need_external:
+            return self.search.search(query)
+        return None
+    
+    def _update_memories(self, user_input, response, user_id):
+        &quot;&quot;&quot;更新记忆&quot;&quot;&quot;
+        # 更新短期记忆
+        self.short_term.add(user_input)
+        self.short_term.add(response)
+        
+        # 更新工作记忆
+        self.working.activate(
+            f&quot;session_{user_id}_{datetime.now().strftime(&#039;%Y%m%d&#039;)}&quot;,
+            f&quot;{user_input}\n{response}&quot;
+        )
+        
+        # 判断是否存入长期记忆
+        if self._should_store_long_term(user_input, response):
+            self.long_term.store({
+                &quot;content&quot;: f&quot;用户：{user_input}\n助理：{response}&quot;,
+                &quot;user_id&quot;: user_id,
+                &quot;timestamp&quot;: datetime.now(),
+                &quot;type&quot;: &quot;conversation&quot;,
+                &quot;importance&quot;: self._calculate_importance(user_input, response)
+            })
+        
+        # 更新用户偏好
+        self._learn_preferences(user_input, user_id)
+    
+    def _learn_preferences(self, user_input, user_id):
+        &quot;&quot;&quot;从对话中学习用户偏好&quot;&quot;&quot;
+        # 提取偏好线索
+        preferences = self._extract_preferences(user_input)
+        
+        for category, value in preferences.items():
+            self.long_term._update_user_preference(user_id, {
+                &quot;category&quot;: category,
+                &quot;value&quot;: value
+            })
+    
+    def get_memory_summary(self, user_id):
+        &quot;&quot;&quot;获取记忆摘要&quot;&quot;&quot;
+        return {
+            &quot;short_term&quot;: len(self.short_term.memory),
+            &quot;working&quot;: len(self.working.active_items),
+            &quot;long_term&quot;: self.long_term.count(filters={&quot;user_id&quot;: user_id}),
+            &quot;preferences&quot;: self.long_term.get_user_preference(user_id)
+        }</code></pre>
+
+<h3>16.4.3 关键实现细节</h3>
+
+<h4>会话记忆保持</h4>
+
+<pre><code>class SessionMemoryManager:
+    &quot;&quot;&quot;会话记忆管理器&quot;&quot;&quot;
+    
+    def __init__(self, session_store):
+        self.session_store = session_store
+        self.active_sessions = {}
+    
+    def create_session(self, user_id, session_id=None):
+        &quot;&quot;&quot;创建新会话&quot;&quot;&quot;
+        session_id = session_id or str(uuid.uuid4())
+        
+        # 加载历史会话记忆
+        history = self._load_session_history(user_id)
+        
+        # 创建新会话
+        session = {
+            &quot;id&quot;: session_id,
+            &quot;user_id&quot;: user_id,
+            &quot;created_at&quot;: datetime.now(),
+            &quot;short_term&quot;: ShortTermMemory(),
+            &quot;working&quot;: WorkingMemory(),
+            &quot;history&quot;: history
+        }
+        
+        self.active_sessions[session_id] = session
+        return session_id
+    
+    def continue_session(self, session_id):
+        &quot;&quot;&quot;继续会话&quot;&quot;&quot;
+        if session_id in self.active_sessions:
+            return self.active_sessions[session_id]
+        
+        # 从存储中恢复
+        session_data = self.session_store.get(session_id)
+        if session_data:
+            session = self._restore_session(session_data)
+            self.active_sessions[session_id] = session
+            return session
+        
+        return None
+    
+    def persist_session(self, session_id):
+        &quot;&quot;&quot;持久化会话&quot;&quot;&quot;
+        session = self.active_sessions.get(session_id)
+        if session:
+            self.session_store.save(session_id, {
+                &quot;user_id&quot;: session[&quot;user_id&quot;],
+                &quot;created_at&quot;: session[&quot;created_at&quot;],
+                &quot;context&quot;: session[&quot;short_term&quot;].get_context(),
+                &quot;summary&quot;: self._create_session_summary(session)
+            })
+    
+    def _create_session_summary(self, session):
+        &quot;&quot;&quot;创建会话摘要&quot;&quot;&quot;
+        context = session[&quot;short_term&quot;].get_context()
+        
+        # 使用LLM创建摘要
+        summary = self._llm_summarize(
+            &quot;\n&quot;.join([item[&quot;content&quot;] for item in context])
+        )
+        
+        return {
+            &quot;summary&quot;: summary,
+            &quot;key_topics&quot;: self._extract_topics(context),
+            &quot;sentiment&quot;: self._analyze_sentiment(context),
+            &quot;action_items&quot;: self._extract_action_items(context)
+        }</code></pre>
+
+<h4>用户偏好学习</h4>
+
+<pre><code>class UserPreferenceLearner:
+    &quot;&quot;&quot;用户偏好学习器&quot;&quot;&quot;
+    
+    def __init__(self, preference_store):
+        self.store = preference_store
+        self.preference_extractors = {
+            &quot;communication_style&quot;: self._extract_communication_style,
+            &quot;topic_interest&quot;: self._extract_topic_interest,
+            &quot;time_preference&quot;: self._extract_time_preference,
+            &quot;detail_level&quot;: self._extract_detail_level
+        }
+    
+    def learn_from_interaction(self, user_id, interaction):
+        &quot;&quot;&quot;从交互中学习偏好&quot;&quot;&quot;
+        extracted = {}
+        
+        for pref_type, extractor in self.preference_extractors.items():
+            preference = extractor(interaction)
+            if preference:
+                extracted[pref_type] = preference
+        
+        # 更新偏好（使用增量学习）
+        self._update_preferences(user_id, extracted)
+    
+    def _extract_communication_style(self, interaction):
+        &quot;&quot;&quot;提取沟通风格偏好&quot;&quot;&quot;
+        response = interaction.get(&quot;assistant_response&quot;, &quot;&quot;)
+        
+        # 分析用户反馈
+        if interaction.get(&quot;feedback&quot;) == &quot;positive&quot;:
+            # 用户喜欢这种风格
+            return {
+                &quot;style&quot;: self._detect_style(response),
+                &quot;confidence&quot;: 0.8
+            }
+        elif interaction.get(&quot;feedback&quot;) == &quot;negative&quot;:
+            # 用户不喜欢
+            return {
+                &quot;style&quot;: self._detect_style(response),
+                &quot;confidence&quot;: -0.5  # 负向信号
+            }
+        
+        return None
+    
+    def _extract_topic_interest(self, interaction):
+        &quot;&quot;&quot;提取主题兴趣&quot;&quot;&quot;
+        user_input = interaction.get(&quot;user_input&quot;, &quot;&quot;)
+        
+        # 提取主题
+        topics = self._extract_topics(user_input)
+        
+        # 更新兴趣权重
+        return {
+            &quot;topics&quot;: topics,
+            &quot;engagement&quot;: self._measure_engagement(interaction)
+        }
+    
+    def _extract_time_preference(self, interaction):
+        &quot;&quot;&quot;提取时间偏好&quot;&quot;&quot;
+        timestamp = interaction.get(&quot;timestamp&quot;)
+        
+        # 分析用户活跃时间
+        return {
+            &quot;hour&quot;: timestamp.hour,
+            &quot;day_of_week&quot;: timestamp.weekday(),
+            &quot;activity_type&quot;: interaction.get(&quot;type&quot;, &quot;query&quot;)
+        }
+    
+    def _extract_detail_level(self, interaction):
+        &quot;&quot;&quot;提取详细程度偏好&quot;&quot;&quot;
+        user_input = interaction.get(&quot;user_input&quot;, &quot;&quot;)
+        
+        # 分析用户询问的详细程度
+        if any(word in user_input for word in [&quot;详细&quot;, &quot;具体&quot;, &quot;更多&quot;]):
+            return {&quot;level&quot;: &quot;detailed&quot;, &quot;confidence&quot;: 0.9}
+        elif any(word in user_input for word in [&quot;简单&quot;, &quot;概括&quot;, &quot;简要&quot;]):
+            return {&quot;level&quot;: &quot;brief&quot;, &quot;confidence&quot;: 0.9}
+        
+        return None
+    
+    def get_preferences(self, user_id):
+        &quot;&quot;&quot;获取用户偏好&quot;&quot;&quot;
+        return self.store.get(user_id) or self._default_preferences()
+    
+    def _default_preferences(self):
+        &quot;&quot;&quot;默认偏好&quot;&quot;&quot;
+        return {
+            &quot;communication_style&quot;: {&quot;style&quot;: &quot;balanced&quot;, &quot;confidence&quot;: 0.5},
+            &quot;topic_interest&quot;: {},
+            &quot;time_preference&quot;: {},
+            &quot;detail_level&quot;: {&quot;level&quot;: &quot;medium&quot;, &quot;confidence&quot;: 0.5}
+        }</code></pre>
+
+<h3>16.4.4 性能优化与监控</h3>
+
+<pre><code>class MemorySystemMonitor:
+    &quot;&quot;&quot;记忆系统监控&quot;&quot;&quot;
+    
+    def __init__(self, memory_system):
+        self.memory = memory_system
+        self.metrics = {
+            &quot;retrieval_latency&quot;: [],
+            &quot;storage_latency&quot;: [],
+            &quot;memory_usage&quot;: [],
+            &quot;hit_rate&quot;: []
+        }
+    
+    def record_retrieval(self, latency, hit):
+        &quot;&quot;&quot;记录检索性能&quot;&quot;&quot;
+        self.metrics[&quot;retrieval_latency&quot;].append(latency)
+        self.metrics[&quot;hit_rate&quot;].append(1 if hit else 0)
+    
+    def record_storage(self, latency):
+        &quot;&quot;&quot;记录存储性能&quot;&quot;&quot;
+        self.metrics[&quot;storage_latency&quot;].append(latency)
+    
+    def get_stats(self):
+        &quot;&quot;&quot;获取统计信息&quot;&quot;&quot;
+        return {
+            &quot;avg_retrieval_latency&quot;: self._avg(self.metrics[&quot;retrieval_latency&quot;]),
+            &quot;avg_storage_latency&quot;: self._avg(self.metrics[&quot;storage_latency&quot;]),
+            &quot;hit_rate&quot;: self._avg(self.metrics[&quot;hit_rate&quot;]),
+            &quot;memory_usage&quot;: self._get_memory_usage()
+        }
+    
+    def optimize(self):
+        &quot;&quot;&quot;执行优化&quot;&quot;&quot;
+        stats = self.get_stats()
+        
+        # 检索优化
+        if stats[&quot;avg_retrieval_latency&quot;] &gt; 100:  # ms
+            self._optimize_retrieval()
+        
+        # 存储优化
+        if stats[&quot;avg_storage_latency&quot;] &gt; 50:  # ms
+            self._optimize_storage()
+        
+        # 内存优化
+        if stats[&quot;memory_usage&quot;] &gt; 0.8:
+            self._optimize_memory()</code></pre>
+
+<hr>
+
+<h2>16.5 总结与展望</h2>
+
+<h3>核心要点回顾</h3>
+
+<strong>1. 搜索能力是Agent突破知识边界的关键</strong>
+
+<ul>
+<li>2026年的搜索已从单一文本检索发展为多模态、多源融合的智能搜索</li>
+<li>向量检索、联网搜索、知识图谱各有适用场景</li>
+<li>混合检索策略能够综合多种方法的优势</li>
+</ul>
+
+<strong>2. 感知能力让Agent"活"在环境中</strong>
+
+<ul>
+<li>环境感知、状态感知、变化感知构成完整的感知体系</li>
+<li>轮询感知适合大多数场景，事件驱动适合实时性要求高的场景</li>
+<li>感知结果直接影响Agent的决策质量</li>
+</ul>
+
+<strong>3. 记忆系统是Agent智能的核心</strong>
+
+<ul>
+<li>短期记忆、工作记忆、长期记忆三层架构是行业标准</li>
+<li>OpenClaw 2026的会话记忆和用户偏好持久化成为标杆实践</li>
+<li>记忆的检索和更新策略决定了记忆系统的效用</li>
+</ul>
+
+<h3>技术管理者行动指南</h3>
+
+<strong>短期行动（1-3个月）</strong>：
+
+<ol>
+<li>评估现有系统的搜索能力，确定多模态搜索升级路径</li>
+<li>设计感知系统的关键指标，确定优先感知的数据源</li>
+<li>选择合适的记忆架构，从短期记忆开始实施</li>
+</ol>
+
+<strong>中期行动（3-6个月）</strong>：
+
+<ol>
+<li>实现完整的三层记忆系统</li>
+<li>建立用户偏好学习机制</li>
+<li>集成搜索、感知、记忆三大能力</li>
+</ol>
+
+<strong>长期行动（6-12个月）</strong>：
+
+<ol>
+<li>优化记忆检索性能</li>
+<li>建立记忆系统监控和运维体系</li>
+<li>探索记忆驱动的个性化服务</li>
+</ol>
+
+<h3>未来趋势</h3>
+
+<strong>1. 统一记忆架构</strong>
+
+<p>2026年后，记忆系统将向统一架构演进：
+<ul>
+<li>跨Agent的记忆共享</li>
+<li>隐私保护的分布式记忆</li>
+<li>记忆的可移植性和互操作性</li>
+</ul></p>
+
+<strong>2. 主动记忆管理</strong>
+
+<p>记忆系统将从被动存储变为主动管理：
+<ul>
+<li>自动识别重要记忆</li>
+<li>智能压缩和归档</li>
+<li>基于价值的记忆遗忘</li>
+</ul></p>
+
+<strong>3. 情感记忆</strong>
+
+<p>情感维度的记忆将受到重视：
+<ul>
+<li>情感标签和情感权重</li>
+<li>情感驱动的记忆检索</li>
+<li>情感共鸣的记忆唤醒</li>
+</ul></p>
+
+<hr>
+
+<h2>思考题</h2>
+
+<ol>
+<li>在您的业务场景中，Agent需要感知哪些环境信息？如何设计感知器的优先级？</li>
+</ol>
+
+<ol>
+<li>如何平衡记忆系统的存储成本和检索效率？哪些记忆适合短期存储，哪些需要长期保留？</li>
+</ol>
+
+<ol>
+<li>用户偏好学习涉及用户隐私，如何在个性化服务和隐私保护之间取得平衡？</li>
+</ol>
+
+<ol>
+<li>如果Agent的记忆系统出现"错误记忆"（如记住了错误的信息），如何设计纠错机制？</li>
+</ol>
+
+<ol>
+<li>搜索、感知、记忆三大能力如何协同工作？请设计一个您业务场景中的协同流程。</li>
+</ol>
+
+<hr>
+
+<em>本章完</em>
+    </div>
+</body>
+</html>

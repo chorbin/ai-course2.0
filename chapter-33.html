@@ -1,0 +1,2366 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第33章 AI服务核心：高并发原理与性能监控调优</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js - Dark Theme -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Marked.js -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-card: #1c2128;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-purple: #a371f7;
+            --accent-red: #f85149;
+            --accent-cyan: #39c5cf;
+            --gradient-start: #1f6feb;
+            --gradient-end: #a371f7;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.8;
+            font-size: 16px;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--bg-tertiary);
+            z-index: 1000;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        /* Header */
+        header {
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 60px 40px 80px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(88, 166, 255, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(163, 113, 247, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .chapter-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.15), rgba(163, 113, 247, 0.15));
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--accent-blue);
+            margin-bottom: 24px;
+        }
+        
+        .chapter-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-blue) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .meta-info {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .meta-item svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+        
+        /* Navigation */
+        nav {
+            position: sticky;
+            top: 0;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+            padding: 12px 40px;
+        }
+        
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 32px;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-links a:hover {
+            color: var(--accent-blue);
+        }
+        
+        .nav-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            text-decoration: none;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        
+        .btn-outline:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+        }
+        
+        /* Main Content */
+        main {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px;
+            gap: 40px;
+        }
+        
+        /* Sidebar TOC */
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 80px;
+            height: fit-content;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+        
+        .toc-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            padding-left: 16px;
+        }
+        
+        .toc-list {
+            list-style: none;
+        }
+        
+        .toc-item {
+            margin-bottom: 4px;
+        }
+        
+        .toc-link {
+            display: block;
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 6px;
+            border-left: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .toc-link:hover {
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+        }
+        
+        .toc-link.active {
+            color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.1);
+            border-left-color: var(--accent-blue);
+        }
+        
+        .toc-item-h3 .toc-link {
+            padding-left: 28px;
+            font-size: 13px;
+        }
+        
+        /* Article Content */
+        article {
+            flex: 1;
+            max-width: 900px;
+        }
+        
+        #content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 48px;
+        }
+        
+        /* Markdown Styles */
+        #content h2 {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 48px 0 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        #content h2:first-child {
+            margin-top: 0;
+        }
+        
+        #content h3 {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin: 36px 0 20px;
+            color: var(--text-primary);
+        }
+        
+        #content h4 {
+            font-size: 1.15em;
+            font-weight: 600;
+            margin: 28px 0 16px;
+            color: var(--text-primary);
+        }
+        
+        #content p {
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+        
+        #content blockquote {
+            margin: 24px 0;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(163, 113, 247, 0.08));
+            border-left: 4px solid var(--accent-blue);
+            border-radius: 0 8px 8px 0;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        #content blockquote p:last-child {
+            margin-bottom: 0;
+        }
+        
+        #content blockquote strong {
+            color: var(--text-primary);
+            font-style: normal;
+        }
+        
+        #content ul, #content ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        
+        #content li {
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        
+        #content li::marker {
+            color: var(--accent-blue);
+        }
+        
+        #content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 14px;
+        }
+        
+        #content th {
+            background: var(--bg-tertiary);
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--accent-blue);
+        }
+        
+        #content td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        #content tr:hover td {
+            background: rgba(88, 166, 255, 0.05);
+        }
+        
+        #content code:not(pre code) {
+            background: var(--bg-tertiary);
+            color: var(--accent-cyan);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+        }
+        
+        #content pre {
+            margin: 24px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--bg-primary) !important;
+            border: 1px solid var(--border-color);
+        }
+        
+        #content pre code {
+            display: block;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        #content pre code.hljs {
+            background: transparent !important;
+        }
+        
+        /* Code Language Badge */
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+        }
+        
+        .code-lang {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .code-copy {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .code-copy:hover {
+            color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        #content hr {
+            border: none;
+            height: 1px;
+            background: var(--border-color);
+            margin: 48px 0;
+        }
+        
+        #content strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        #content em {
+            color: var(--accent-cyan);
+        }
+        
+        /* Special Blocks */
+        .note-box {
+            background: linear-gradient(135deg, rgba(63, 185, 80, 0.1), rgba(63, 185, 80, 0.05));
+            border: 1px solid rgba(63, 185, 80, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+        
+        .warning-box {
+            background: linear-gradient(135deg, rgba(210, 153, 34, 0.1), rgba(210, 153, 34, 0.05));
+            border: 1px solid rgba(210, 153, 34, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+        
+        /* Section Numbers */
+        .section-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+        
+        /* Footer */
+        footer {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        .footer-nav {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 24px;
+        }
+        
+        .footer-nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 12px 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .footer-nav a:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        /* Back to Top */
+        .back-to-top {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 48px;
+            height: 48px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .back-to-top:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            transform: translateY(-3px);
+        }
+        
+        .back-to-top svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-secondary);
+            transition: fill 0.2s ease;
+        }
+        
+        .back-to-top:hover svg {
+            fill: white;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                display: none;
+            }
+            
+            main {
+                padding: 24px;
+            }
+            
+            #content {
+                padding: 32px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header {
+                padding: 40px 20px 60px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            nav {
+                padding: 12px 20px;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            main {
+                padding: 16px;
+            }
+            
+            #content {
+                padding: 24px;
+            }
+            
+            #content h2 {
+                font-size: 1.4em;
+            }
+            
+            #content h3 {
+                font-size: 1.2em;
+            }
+        }
+        
+        /* Smooth Scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Selection */
+        ::selection {
+            background: rgba(88, 166, 255, 0.3);
+        }
+        
+        /* Print Styles */
+        @media print {
+            .progress-container, nav, .sidebar, .back-to-top, footer {
+                display: none !important;
+            }
+            
+            body {
+                background: white;
+                color: black;
+            }
+            
+            #content {
+                background: white;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="chapter-badge">第33章</div>
+            <h1>AI服务核心：高并发原理与性能监控调优</h1>
+            <p class="subtitle">面向技术管理者的性能优化实战指南 | 时间背景：2026年3月</p>
+            <div class="meta-info">
+                <span class="meta-item">
+                    <svg viewBox="0 0 16 16"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM7 11.5V8H5l3-3.5L11 8H9v3.5H7z"/></svg>
+                    高并发架构
+                </span>
+                <span class="meta-item">
+                    <svg viewBox="0 0 16 16"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm1 12H7v-2h2v2zm0-4H7V4h2v4z"/></svg>
+                    性能监控
+                </span>
+                <span class="meta-item">
+                    <svg viewBox="0 0 16 16"><path d="M9 13H7v-2h2v2zm0-4H7V3h2v6zm1-9H6v14h4V0z"/></svg>
+                    调优实战
+                </span>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-content">
+            <div class="nav-links">
+                <a href="#第一部分高并发架构原理">高并发架构</a>
+                <a href="#第二部分负载均衡策略">负载均衡</a>
+                <a href="#第三部分性能监控体系">性能监控</a>
+                <a href="#第四部分性能调优实战">调优实战</a>
+                <a href="#第五部分2026年性能优化趋势">未来趋势</a>
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-outline" onclick="window.print()">打印</button>
+                <button class="btn btn-primary" onclick="copyLink()">分享课程</button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main>
+        <!-- Sidebar TOC -->
+        <aside class="sidebar">
+            <div class="toc-title">目录导航</div>
+            <ul class="toc-list" id="tocList">
+                <!-- Generated by JS -->
+            </ul>
+        </aside>
+        
+        <!-- Article -->
+        <article>
+            <div id="content">
+                <!-- Markdown content rendered here -->
+            </div>
+        </article>
+    </main>
+    
+    <!-- Footer -->
+    <footer>
+        <p>AI课程系列 · 第33章</p>
+        <p style="margin-top: 8px;">下一章：SGLang深度优化：Radix缓存与多并发任务的极致交互</p>
+        <div class="footer-nav">
+            <a href="#">← 上一章</a>
+            <a href="#">下一章 →</a>
+        </div>
+    </footer>
+    
+    <!-- Back to Top -->
+    <div class="back-to-top" id="backToTop">
+        <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+    </div>
+    
+    <script>
+        // Markdown content
+        const markdownContent = `# 第33章 AI服务核心：高并发原理与性能监控调优
+
+> **面向技术管理者的性能优化实战指南**  
+> 时间背景：2026年3月
+
+---
+
+## 本章概览
+
+当AI服务从实验室走向生产环境，高并发处理能力和性能稳定性成为决定成败的关键。本章将深入剖析AI推理服务的高并发架构原理，构建完整的性能监控体系，并通过实战案例展示调优方法论，帮助技术管理者构建既快又稳的AI服务基础设施。
+
+**学习目标：**
+- 掌握AI推理服务高并发架构的核心原理
+- 理解负载均衡策略的设计与选型
+- 构建多维度性能监控体系
+- 学会从数据驱动视角进行性能调优
+- 掌握常见性能瓶颈的诊断与解决方法
+
+---
+
+## 第一部分：高并发架构原理
+
+### 1.1 AI推理服务的并发挑战
+
+传统Web服务与AI推理服务在并发处理上存在本质差异，理解这些差异是设计高并发架构的前提。
+
+**传统Web服务特点：**
+- CPU密集型或I/O密集型
+- 单请求处理时间短（毫秒级）
+- 内存占用相对固定
+- 可轻松横向扩展
+
+**AI推理服务的特殊性：**
+
+| 维度 | 传统服务 | AI推理服务 | 挑战 |
+|-----|---------|-----------|------|
+| 计算特征 | CPU/IO密集 | GPU计算密集 | GPU资源稀缺 |
+| 延迟分布 | 相对均匀 | 长尾明显 | P99可达P50的10倍 |
+| 内存模式 | 相对固定 | 动态增长（KV Cache） | 内存碎片严重 |
+| 扩展性 | 线性扩展 | 受GPU数量约束 | 成本高、扩展慢 |
+
+**核心瓶颈分析：**
+
+1. **计算瓶颈**：GPU算力有限，大模型单次推理可能需要数秒
+2. **显存瓶颈**：KV Cache随序列长度增长，内存管理复杂
+3. **带宽瓶颈**：模型加载、数据传输消耗大量带宽
+4. **调度瓶颈**：请求队列管理、优先级调度需要精心设计
+
+### 1.2 高并发架构设计原则
+
+**原则一：异步非阻塞I/O**
+
+AI推理服务必须采用异步架构，避免线程阻塞：
+
+\`\`\`
+同步模式（错误示范）：
+请求1 → [等待GPU] → 响应1 (阻塞3000ms)
+请求2 → [等待] → [等待GPU] → 响应2 (总耗时6000ms)
+
+异步模式（正确做法）：
+请求1 → [提交GPU] → 异步等待 → 响应1
+请求2 → [提交GPU] → 异步等待 → 响应2
+GPU并行处理 → 总耗时~3500ms（批处理效率）
+\`\`\`
+
+**异步架构核心组件：**
+
+\`\`\`python
+# 异步推理服务架构示例
+import asyncio
+from typing import AsyncGenerator
+
+class AsyncInferenceEngine:
+    def __init__(self, model_path: str, max_batch_size: int = 32):
+        self.model = self._load_model(model_path)
+        self.request_queue = asyncio.Queue()
+        self.max_batch_size = max_batch_size
+        
+    async def inference(self, prompt: str) -> str:
+        """异步推理接口"""
+        future = asyncio.Future()
+        await self.request_queue.put((prompt, future))
+        return await future
+    
+    async def batch_processor(self):
+        """批量处理协程"""
+        while True:
+            batch = []
+            # 动态收集请求，等待时间不超过32ms
+            try:
+                while len(batch) < self.max_batch_size:
+                    item = await asyncio.wait_for(
+                        self.request_queue.get(), 
+                        timeout=0.032
+                    )
+                    batch.append(item)
+            except asyncio.TimeoutError:
+                pass
+            
+            if batch:
+                prompts = [item[0] for item in batch]
+                futures = [item[1] for item in batch]
+                results = await self._batch_inference(prompts)
+                for future, result in zip(futures, results):
+                    future.set_result(result)
+\`\`\`
+
+**原则二：请求队列与流控**
+
+高并发场景下，合理的队列设计是防止系统崩溃的关键：
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────┐
+│                      请求处理流水线                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  用户请求 ──▶ [限流层] ──▶ [优先级队列] ──▶ [批处理器] ──▶ GPU │
+│                 │              │              │            │
+│                 │              │              │            │
+│              Token Bucket   多级队列      动态批大小        │
+│              令牌桶算法     VIP优先       自适应调整        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+**限流策略配置：**
+
+\`\`\`python
+from dataclasses import dataclass
+from enum import Enum
+
+class UserType(Enum):
+    VIP = "vip"
+    STANDARD = "standard"
+    FREE = "free"
+
+@dataclass
+class RateLimitConfig:
+    """分级限流配置"""
+    vip: dict = None      # 1000 req/min
+    standard: dict = None  # 100 req/min
+    free: dict = None      # 20 req/min
+    
+    def __post_init__(self):
+        self.vip = {"rps": 20, "burst": 100}
+        self.standard = {"rps": 2, "burst": 20}
+        self.free = {"rps": 0.3, "burst": 5}
+\`\`\`
+
+**原则三：资源池化与复用**
+
+GPU资源是昂贵的，必须最大化复用：
+
+\`\`\`
+资源复用维度：
+
+1. 模型权重复用
+   ├─ 多进程共享模型权重（避免重复加载）
+   ├─ 模型常驻内存（热启动 <1s vs 冷启动 30s+）
+   └─ 权重分片存储（支持大模型分布式推理）
+
+2. KV Cache复用
+   ├─ PagedAttention内存管理（vLLM核心）
+   ├─ 前缀缓存（相同prompt前缀共享计算）
+   └─ 跨请求缓存（语义相似问题复用结果）
+
+3. 连接复用
+   ├─ HTTP Keep-Alive
+   ├─ gRPC长连接
+   └─ WebSocket双向通信
+\`\`\`
+
+### 1.3 GPU并发执行原理
+
+**GPU并行计算模型：**
+
+理解GPU如何并行处理请求是优化推理性能的基础：
+
+\`\`\`
+GPU执行模型：
+
+┌────────────────────────────────────────────────────┐
+│                    GPU架构                          │
+├────────────────────────────────────────────────────┤
+│  ┌──────────────────────────────────────────────┐ │
+│  │         Streaming Multiprocessor (SM)        │ │
+│  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │ │
+│  │  │  CUDA  │ │  CUDA  │ │  CUDA  │ │  CUDA  │ │ │
+│  │  │ Core   │ │ Core   │ │ Core   │ │ Core   │ │ │
+│  │  └────────┘ └────────┘ └────────┘ └────────┘ │ │
+│  │  ... (数百个CUDA Core)                        │ │
+│  └──────────────────────────────────────────────┘ │
+│                    × 多个SM                        │
+└────────────────────────────────────────────────────┘
+
+并行执行特点：
+- SIMT（单指令多线程）架构
+- 线程束（Warp）大小：32线程
+- 批处理请求可充分利用并行性
+\`\`\`
+
+**批处理优化原理：**
+
+\`\`\`
+单请求串行：
+请求1: [----加载----][----计算----][----输出----]
+请求2:                [----加载----][----计算----][----输出----]
+请求3:                              [----加载----][----计算----]...
+总耗时：3 × (加载 + 计算 + 输出)
+
+批处理并行：
+请求1,2,3: [--批量加载--][--批量计算--][--批量输出--]
+总耗时：≈ 1 × (加载 + 计算 + 输出)
+加速比：≈ 3×
+\`\`\`
+
+**CUDA Kernel优化要点：**
+
+| 优化技术 | 说明 | 性能提升 |
+|---------|-----|---------|
+| Kernel融合 | 多个算子合并 | 1.2-1.5× |
+| 共享内存 | 减少全局内存访问 | 1.5-3× |
+| Warp优化 | 避免线程分歧 | 1.1-1.3× |
+| 内存合并 | 连续内存访问 | 1.2-2× |
+
+### 1.4 内存管理与KV Cache
+
+**KV Cache增长规律：**
+
+KV Cache是LLM推理中内存消耗的主要来源：
+
+\`\`\`
+KV Cache内存占用计算：
+
+每个Token的KV Cache = 2 × 层数 × 头数 × 头维度 × 精度
+
+以Llama-3-70B为例：
+- 层数：80
+- 头数：64
+- 头维度：128
+- 精度：FP16 (2 bytes)
+
+每Token KV Cache = 2 × 80 × 64 × 128 × 2 = 2,621,440 bytes ≈ 2.5 MB
+
+生成2048个Token的KV Cache ≈ 5GB
+\`\`\`
+
+**PagedAttention内存管理：**
+
+vLLM的PagedAttention解决了KV Cache的内存碎片问题：
+
+\`\`\`
+传统预分配（内存碎片严重）：
+┌────────────────────────────────────────────────┐
+│ [请求1: ████░░░░░░░░] [请求2: ██████░░░░░░]    │
+│ [请求3: ████████░░░░] [空闲碎片: ░░░░░░░░░░]   │
+│ 实际利用率：40-60%                              │
+└────────────────────────────────────────────────┘
+
+PagedAttention（按页管理）：
+┌────────────────────────────────────────────────┐
+│ 页1[请求1] 页2[请求1] 页3[请求2] 页4[请求3]     │
+│ 页5[请求2] 页6[请求1] 页7[空闲] 页8[请求3]     │
+│ 实际利用率：90%+                                │
+└────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## 第二部分：负载均衡策略
+
+### 2.1 负载均衡架构设计
+
+AI推理服务的负载均衡比传统Web服务更复杂，需要考虑GPU资源特性和推理延迟分布。
+
+**多级负载均衡架构：**
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                        用户请求层                                │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   L7负载均衡（API网关）                         │
+│  ├─ 请求路由（不同模型/不同租户）                               │
+│  ├─ 认证授权                                                   │
+│  ├─ 限流熔断                                                   │
+│  └─ 协议转换（HTTP → gRPC）                                    │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   L4负载均衡（服务层）                           │
+│  ├─ 健康检查                                                   │
+│  ├─ 会话保持（可选）                                           │
+│  └─ 流量分配                                                   │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          │               │               │
+          ▼               ▼               ▼
+    ┌──────────┐   ┌──────────┐   ┌──────────┐
+    │ 推理实例1│   │ 推理实例2│   │ 推理实例3│
+    │  GPU:0-1 │   │  GPU:2-3 │   │  GPU:4-5 │
+    └──────────┘   └──────────┘   └──────────┘
+\`\`\`
+
+### 2.2 负载均衡算法选择
+
+**算法一：加权轮询（Weighted Round Robin）**
+
+适用场景：GPU实例性能不均匀
+
+\`\`\`python
+class WeightedRoundRobin:
+    """加权轮询负载均衡"""
+    
+    def __init__(self, servers: list[dict]):
+        # servers: [{"host": "10.0.0.1", "weight": 3}, ...]
+        self.servers = servers
+        self.current_weights = [0] * len(servers)
+        
+    def get_next_server(self) -> dict:
+        total_weight = sum(s["weight"] for s in self.servers)
+        max_weight = -1
+        selected_idx = 0
+        
+        for i, server in enumerate(self.servers):
+            self.current_weights[i] += server["weight"]
+            if self.current_weights[i] > max_weight:
+                max_weight = self.current_weights[i]
+                selected_idx = i
+        
+        self.current_weights[selected_idx] -= total_weight
+        return self.servers[selected_idx]
+\`\`\`
+
+**算法二：最少连接（Least Connections）**
+
+适用场景：请求处理时间差异大（AI推理典型场景）
+
+\`\`\`python
+class LeastConnections:
+    """最少连接负载均衡"""
+    
+    def __init__(self, servers: list[str]):
+        self.servers = {server: 0 for server in servers}
+        
+    def get_next_server(self) -> str:
+        return min(self.servers, key=self.servers.get)
+    
+    def increment(self, server: str):
+        self.servers[server] += 1
+        
+    def decrement(self, server: str):
+        self.servers[server] -= 1
+\`\`\`
+
+**算法三：一致性哈希（Consistent Hashing）**
+
+适用场景：需要会话保持、缓存命中优化
+
+\`\`\`python
+import hashlib
+
+class ConsistentHashing:
+    """一致性哈希负载均衡"""
+    
+    def __init__(self, servers: list[str], replicas: int = 150):
+        self.ring = {}
+        self.replicas = replicas
+        
+        for server in servers:
+            for i in range(replicas):
+                key = self._hash(f"{server}:{i}")
+                self.ring[key] = server
+                
+    def _hash(self, key: str) -> int:
+        return int(hashlib.md5(key.encode()).hexdigest(), 16)
+        
+    def get_server(self, key: str) -> str:
+        """根据key（如用户ID）定位服务器"""
+        hash_val = self._hash(key)
+        sorted_keys = sorted(self.ring.keys())
+        
+        for k in sorted_keys:
+            if hash_val <= k:
+                return self.ring[k]
+                
+        return self.ring[sorted_keys[0]]  # 环回
+\`\`\`
+
+**算法四：自适应负载均衡（AI推理推荐）**
+
+结合GPU实时状态进行智能调度：
+
+\`\`\`python
+import asyncio
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class ServerMetrics:
+    gpu_utilization: float      # GPU利用率 0-1
+    memory_used_ratio: float    # 显存使用率 0-1
+    queue_length: int           # 等待队列长度
+    avg_latency_ms: float      # 平均延迟
+    last_update: datetime
+
+class AdaptiveLoadBalancer:
+    """自适应负载均衡"""
+    
+    def __init__(self, servers: list[str]):
+        self.servers = servers
+        self.metrics: dict[str, ServerMetrics] = {}
+        
+    def update_metrics(self, server: str, metrics: ServerMetrics):
+        self.metrics[server] = metrics
+        
+    def calculate_score(self, server: str) -> float:
+        """综合评分，越高越适合接收请求"""
+        m = self.metrics.get(server)
+        if not m:
+            return 0.5
+            
+        # 评分公式：考虑GPU利用率、显存、队列长度、延迟
+        score = (
+            (1 - m.gpu_utilization) * 0.3 +      # GPU空闲权重
+            (1 - m.memory_used_ratio) * 0.2 +    # 显存空闲权重
+            (1 / (m.queue_length + 1)) * 0.3 +  # 队列空闲权重
+            (1 / (m.avg_latency_ms / 1000 + 1)) * 0.2  # 延迟权重
+        )
+        return score
+        
+    def get_best_server(self) -> str:
+        return max(self.servers, key=self.calculate_score)
+\`\`\`
+
+### 2.3 负载均衡配置实践
+
+**Nginx配置示例（L7负载均衡）：**
+
+\`\`\`nginx
+upstream ai_inference {
+    # 最少连接策略
+    least_conn;
+    
+    # 后端服务器配置
+    server 10.0.0.1:8000 weight=3 max_fails=3 fail_timeout=30s;
+    server 10.0.0.2:8000 weight=3 max_fails=3 fail_timeout=30s;
+    server 10.0.0.3:8000 weight=2 max_fails=3 fail_timeout=30s;
+    
+    # 健康检查（需要nginx-plus或tengine）
+    # health_check interval=5s fails=3 passes=2;
+    
+    # 连接保持
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+    
+    location /v1/chat/completions {
+        proxy_pass http://ai_inference;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        
+        # 超时配置（AI推理需要较长超时）
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        
+        # 限流
+        limit_req zone=ai_limit burst=100 nodelay;
+    }
+}
+
+# 限流配置
+limit_req_zone $binary_remote_addr zone=ai_limit=10m rate=10r/s;
+\`\`\`
+
+**服务网格配置（Istio）：**
+
+\`\`\`yaml
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: ai-inference
+spec:
+  host: ai-inference-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 1000
+      http:
+        h2UpgradePolicy: UPGRADE
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 1000
+    loadBalancer:
+      # 最少请求策略
+      simple: LEAST_REQUEST
+      leastRequest:
+        choiceCount: 3  # 从3个候选中选择负载最小的
+    outlierDetection:
+      # 异常实例检测
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+\`\`\`
+
+### 2.4 多模型负载均衡
+
+企业场景常需要同时服务多个模型，需要更复杂的路由策略：
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────┐
+│                      模型路由层                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  用户请求 ──▶ [模型识别] ──▶ [模型池路由] ──▶ 推理实例       │
+│                   │               │                        │
+│                   │               ├─▶ 7B模型池              │
+│                   │               │   ├─实例1-1            │
+│                   │               │   ├─实例1-2            │
+│                   │               │   └─实例1-3            │
+│                   │               │                        │
+│                   │               ├─▶ 70B模型池             │
+│                   │               │   ├─实例2-1            │
+│                   │               │   └─实例2-2            │
+│                   │               │                        │
+│                   │               └─▶ 多模态模型池          │
+│                   │                   ├─实例3-1            │
+│                   │                   └─实例3-2            │
+│                   │                                        │
+│                   └─ 根据请求中的model参数路由               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+**模型路由配置示例：**
+
+\`\`\`python
+class ModelRouter:
+    """多模型路由器"""
+    
+    MODEL_POOLS = {
+        "gpt-4": ["70b-pool-1", "70b-pool-2"],
+        "gpt-3.5-turbo": ["7b-pool-1", "7b-pool-2", "7b-pool-3"],
+        "claude-3": ["claude-pool-1"],
+        "llava": ["multimodal-pool-1"],
+    }
+    
+    def __init__(self):
+        self.pool_load balancers = {
+            pool: AdaptiveLoadBalancer(servers)
+            for pool, servers in self.MODEL_POOLS.items()
+        }
+        
+    def route(self, request: dict) -> str:
+        model = request.get("model", "gpt-3.5-turbo")
+        
+        # 模型别名映射
+        model_aliases = {
+            "gpt4": "gpt-4",
+            "gpt35": "gpt-3.5-turbo",
+            "claude": "claude-3",
+        }
+        model = model_aliases.get(model, model)
+        
+        if model not in self.MODEL_POOLS:
+            raise ValueError(f"Unknown model: {model}")
+            
+        pool = self.MODEL_POOLS[model]
+        return self.pool_loadbalancers[pool].get_best_server()
+\`\`\`
+
+---
+
+## 第三部分：性能监控体系
+
+### 3.1 监控指标体系设计
+
+完整的AI推理服务监控需要覆盖多个维度：
+
+**指标金字塔：**
+
+\`\`\`
+                    ┌─────────────┐
+                    │  业务指标   │  ← 用户价值层
+                    │ (成功转化率)│
+                    └──────┬──────┘
+                           │
+              ┌────────────┴────────────┐
+              │       服务指标          │  ← 服务质量层
+              │  (可用性、响应时间)     │
+              └────────────┬────────────┘
+                           │
+         ┌─────────────────┴─────────────────┐
+         │           系统指标                 │  ← 资源效率层
+         │   (CPU、GPU、内存、网络)           │
+         └─────────────────┬─────────────────┘
+                           │
+    ┌──────────────────────┴──────────────────────┐
+    │                 基础设施指标                  │  ← 底层保障层
+    │        (电力、温度、网络设备状态)             │
+    └─────────────────────────────────────────────┘
+\`\`\`
+
+### 3.2 核心监控指标详解
+
+**一、服务层指标（SLI/SLO）**
+
+| 指标名称 | 计算方式 | SLO目标 | 说明 |
+|---------|---------|--------|------|
+| 可用性 | 成功请求数/总请求数 | ≥99.9% | 服务整体可用性 |
+| 成功率 | HTTP 2xx数/总请求数 | ≥99.5% | 业务成功率 |
+| P50延迟 | 50%请求的响应时间 | <500ms | 典型用户体验 |
+| P99延迟 | 99%请求的响应时间 | <2000ms | 尾部延迟控制 |
+| P99.9延迟 | 99.9%请求的响应时间 | <5000ms | 极端情况控制 |
+| 吞吐量(QPS) | 请求数/秒 | 根据容量规划 | 服务容量指标 |
+| 错误率 | 错误数/总请求数 | <0.5% | 服务健康度 |
+
+**二、推理层指标**
+
+| 指标名称 | 说明 | 监控意义 |
+|---------|-----|---------|
+| TTFT (Time to First Token) | 首个Token返回时间 | 用户体验关键指标 |
+| TPOT (Time Per Output Token) | 每个输出Token时间 | 生成速度指标 |
+| 总Token数 | 输入+输出Token数 | 计费、成本核算 |
+| 批处理大小 | 单次批处理请求数 | 并行效率指标 |
+| KV Cache命中率 | 缓存命中/总请求 | 内存效率指标 |
+| 队列深度 | 等待处理请求数 | 系统负载指标 |
+
+**三、GPU层指标**
+
+| 指标名称 | 说明 | 告警阈值 |
+|---------|-----|---------|
+| GPU利用率 | GPU计算单元使用率 | <30%: 浪费告警, >90%: 容量告警 |
+| 显存使用率 | GPU显存占用比例 | >85%: 容量告警 |
+| GPU温度 | GPU核心温度 | >85°C: 温度告警 |
+| GPU功耗 | 实时功耗 | 异常波动告警 |
+| PCIe带宽 | 数据传输速率 | 瓶颈诊断用 |
+| SM效率 | 流式多处理器效率 | 性能调优用 |
+
+**四、系统层指标**
+
+| 指标名称 | 说明 | 告警阈值 |
+|---------|-----|---------|
+| CPU利用率 | CPU使用率 | >80%告警 |
+| 内存使用率 | 系统内存占用 | >85%告警 |
+| 磁盘IOPS | 磁盘读写次数 | 接近上限告警 |
+| 网络带宽 | 入出流量 | 饱和告警 |
+| 系统负载 | Load Average | >CPU核心数告警 |
+
+### 3.3 监控架构实现
+
+**Prometheus + Grafana 监控栈：**
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────┐
+│                    监控数据流                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│  │ 推理服务实例 │    │   Node       │    │   NVIDIA     │  │
+│  │ (自定义指标) │    │   Exporter   │    │   DCGM       │  │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘  │
+│         │                   │                   │          │
+│         └─────────────┬─────┴───────────────────┘          │
+│                       │                                    │
+│                       ▼                                    │
+│              ┌─────────────────┐                          │
+│              │   Prometheus    │  ← 时序数据库             │
+│              │   (采集+存储)    │                          │
+│              └────────┬────────┘                          │
+│                       │                                    │
+│         ┌─────────────┼─────────────┐                     │
+│         │             │             │                     │
+│         ▼             ▼             ▼                     │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐             │
+│  │  Grafana   │ │ AlertManager│ │  自动伸缩  │             │
+│  │  (可视化)  │ │  (告警)    │ │  (HPA/VPA)│             │
+│  └────────────┘ └────────────┘ └────────────┘             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+**Prometheus指标定义示例：**
+
+\`\`\`python
+from prometheus_client import Counter, Histogram, Gauge
+
+# 请求计数器
+REQUEST_COUNT = Counter(
+    'ai_inference_requests_total',
+    'Total inference requests',
+    ['model', 'status', 'user_type']
+)
+
+# 延迟直方图
+LATENCY_HISTOGRAM = Histogram(
+    'ai_inference_latency_seconds',
+    'Inference latency in seconds',
+    ['model', 'endpoint'],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0]
+)
+
+# TTFT直方图
+TTFT_HISTOGRAM = Histogram(
+    'ai_inference_ttft_seconds',
+    'Time to first token in seconds',
+    ['model'],
+    buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
+)
+
+# GPU指标
+GPU_UTILIZATION = Gauge(
+    'gpu_utilization_ratio',
+    'GPU utilization ratio',
+    ['gpu_id', 'instance']
+)
+
+GPU_MEMORY_USED = Gauge(
+    'gpu_memory_used_bytes',
+    'GPU memory used in bytes',
+    ['gpu_id', 'instance']
+)
+
+# 队列深度
+QUEUE_DEPTH = Gauge(
+    'inference_queue_depth',
+    'Number of requests waiting in queue',
+    ['model', 'instance']
+)
+\`\`\`
+
+**关键指标采集代码：**
+
+\`\`\`python
+import time
+from prometheus_client import start_http_server
+
+class InferenceService:
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        self.request_queue = []
+        
+    @LATENCY_HISTOGRAM.labels(model='default', endpoint='chat').time()
+    async def inference(self, request: dict, user_type: str = 'standard'):
+        start_time = time.time()
+        
+        try:
+            # 更新队列深度
+            QUEUE_DEPTH.labels(model=self.model_name, instance='local').inc()
+            
+            # 执行推理
+            result = await self._do_inference(request)
+            
+            # 记录成功
+            REQUEST_COUNT.labels(
+                model=self.model_name,
+                status='success',
+                user_type=user_type
+            ).inc()
+            
+            return result
+            
+        except Exception as e:
+            # 记录失败
+            REQUEST_COUNT.labels(
+                model=self.model_name,
+                status='error',
+                user_type=user_type
+            ).inc()
+            raise
+            
+        finally:
+            QUEUE_DEPTH.labels(model=self.model_name, instance='local').dec()
+            
+    async def _do_inference(self, request: dict):
+        # 记录TTFT
+        ttft_start = time.time()
+        first_token = await self.model.generate_first_token(request)
+        ttft = time.time() - ttft_start
+        TTFT_HISTOGRAM.labels(model=self.model_name).observe(ttft)
+        
+        # 继续生成
+        return await self.model.continue_generation(first_token)
+
+# 启动Prometheus exporter
+start_http_server(9090)
+\`\`\`
+
+### 3.4 Grafana监控仪表盘
+
+**核心仪表盘设计：**
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     AI推理服务监控仪表盘                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐        │
+│  │    总QPS         │ │    成功率        │ │    P99延迟      │        │
+│  │    1,234/s       │ │    99.87%       │ │    1.23s        │        │
+│  │    ↑ 12%         │ │    ↑ 0.02%      │ │    ↓ 5%         │        │
+│  └──────────────────┘ └──────────────────┘ └──────────────────┘        │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │                        请求延迟分布                               │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓                                                       │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓                                                   │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                                                │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                                             │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                                          │ │
+│  │  100ms  250ms  500ms  1s    2s    5s    10s   30s                  │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│  ┌───────────────────────────┐ ┌───────────────────────────┐          │
+│  │    GPU利用率 (%)          │ │    队列深度               │          │
+│  │    GPU0: ████████░░ 82%  │ │    model-7b:  23          │          │
+│  │    GPU1: █████████░ 87%  │ │    model-70b: 45          │          │
+│  │    GPU2: ███████░░░ 75%  │ │                           │          │
+│  │    GPU3: █████████░ 89%  │ │                           │          │
+│  └───────────────────────────┘ └───────────────────────────┘          │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │  🔔 最近告警                                                       │ │
+│  │  • [10:23:45] GPU1温度超过85°C                                    │ │
+│  │  • [10:15:22] P99延迟超过阈值                                     │ │
+│  │  • [09:58:11] 实例inference-03健康检查失败                        │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+### 3.5 告警规则配置
+
+**Prometheus告警规则：**
+
+\`\`\`yaml
+groups:
+  - name: ai_inference_alerts
+    rules:
+      # 可用性告警
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(ai_inference_requests_total{status="error"}[5m])) 
+          / sum(rate(ai_inference_requests_total[5m])) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "错误率超过1%"
+          description: "AI推理服务错误率为 {{ $value | humanizePercentage }}"
+          
+      # 延迟告警
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(ai_inference_latency_seconds_bucket[5m])) by (le)
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99延迟过高"
+          description: "P99延迟为 {{ $value }}秒"
+          
+      # GPU告警
+      - alert: GPUUtilizationLow
+        expr: avg(gpu_utilization_ratio) < 0.3
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "GPU利用率过低，考虑缩容"
+          
+      - alert: GPUUtilizationHigh
+        expr: avg(gpu_utilization_ratio) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU利用率过高，考虑扩容"
+          
+      - alert: GPUTemperatureHigh
+        expr: gpu_temperature_celsius > 85
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU {{ $labels.gpu_id }} 温度过高"
+          
+      # 队列告警
+      - alert: QueueDepthHigh
+        expr: inference_queue_depth > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "推理队列积压严重"
+          description: "当前队列深度: {{ $value }}"
+          
+      # 实例健康告警
+      - alert: InstanceDown
+        expr: up{job="inference"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "推理实例 {{ $labels.instance }} 宕机"
+\`\`\`
+
+---
+
+## 第四部分：性能调优实战
+
+### 4.1 性能问题诊断方法论
+
+**诊断五步法：**
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────┐
+│                    性能诊断五步法                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Step 1: 症状确认                                           │
+│  ├─ 具体现象是什么？（延迟高？吞吐低？错误多？）           │
+│  ├─ 发生时间？（持续？突发？周期性？）                     │
+│  └─ 影响范围？（全部用户？部分用户？特定模型？）           │
+│                                                             │
+│  Step 2: 指标分析                                           │
+│  ├─ 服务层指标：QPS、延迟、错误率                          │
+│  ├─ 推理层指标：TTFT、TPOT、队列深度                        │
+│  └─ 系统层指标：CPU、GPU、内存、I/O                         │
+│                                                             │
+│  Step 3: 日志追踪                                           │
+│  ├─ 错误日志分析                                            │
+│  ├─ 慢请求追踪                                              │
+│  └─ 分布式追踪（Trace ID）                                  │
+│                                                             │
+│  Step 4: 瓶颈定位                                           │
+│  ├─ CPU瓶颈：计算密集、线程不足                             │
+│  ├─ GPU瓶颈：显存不足、算力不够                             │
+│  ├─ I/O瓶颈：网络、磁盘                                     │
+│  └─ 代码瓶颈：低效算法、锁竞争                              │
+│                                                             │
+│  Step 5: 优化验证                                           │
+│  ├─ 实施优化措施                                            │
+│  ├─ 对比优化前后指标                                        │
+│  └─ 回归测试确保功能正确                                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+### 4.2 常见性能瓶颈与解决方案
+
+**瓶颈一：GPU利用率低**
+
+**症状：**
+- GPU利用率 < 50%
+- 吞吐量低于预期
+- 延迟正常但QPS上不去
+
+**诊断：**
+\`\`\`bash
+# 查看GPU利用率
+nvidia-smi -l 1
+
+# 查看详细GPU指标
+dcgm-exporter
+\`\`\`
+
+**原因分析与解决：**
+
+| 原因 | 解决方案 |
+|-----|---------|
+| 批处理大小太小 | 增大max_batch_size |
+| 请求间隔太大 | 启用Continuous Batching |
+| CPU预处理瓶颈 | 使用GPU预处理、优化数据加载 |
+| 模型太小GPU空转 | 模型并行或多实例部署 |
+
+**优化示例：**
+\`\`\`python
+# vLLM配置优化
+from vllm import LLM
+
+# 低效配置
+llm = LLM(
+    model="Qwen/Qwen2.5-7B",
+    tensor_parallel_size=1,
+    max_num_seqs=8,  # 批处理太小
+)
+
+# 优化配置
+llm = LLM(
+    model="Qwen/Qwen2.5-7B",
+    tensor_parallel_size=1,
+    max_num_seqs=64,  # 增大批处理
+    gpu_memory_utilization=0.95,  # 提高显存利用率
+    max_model_len=8192,
+    enforce_eager=True,  # 启用eager模式减少开销
+)
+\`\`\`
+
+**瓶颈二：延迟高**
+
+**症状：**
+- P99延迟远高于P50
+- TTFT过长
+- 用户反馈响应慢
+
+**诊断工具：**
+\`\`\`python
+# 分布式追踪集成
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+
+tracer = trace.get_tracer(__name__)
+
+async def inference_with_trace(request):
+    with tracer.start_as_current_span("inference") as span:
+        # 预处理
+        with tracer.start_as_current_span("preprocess"):
+            tokens = tokenize(request.prompt)
+            
+        # 模型推理
+        with tracer.start_as_current_span("model_forward"):
+            with tracer.start_as_current_span("first_token"):
+                first_token = await model.generate_first(tokens)
+            with tracer.start_as_current_span("generation"):
+                result = await model.continue_generate(first_token)
+                
+        # 后处理
+        with tracer.start_as_current_span("postprocess"):
+            response = format_response(result)
+            
+        return response
+\`\`\`
+
+**优化策略：**
+
+| 延迟来源 | 优化方法 | 效果 |
+|---------|---------|-----|
+| 模型加载 | 模型常驻内存、权重预热 | 减少30s启动时间 |
+| Tokenization | 预缓存、并行处理 | 减少50-100ms |
+| 首Token生成 | Speculative Decoding | TTFT降低30-50% |
+| 批处理等待 | 降低max_wait时间 | TTFT降低20-30% |
+| 网络传输 | gRPC代替HTTP、压缩 | 减少10-50ms |
+
+**瓶颈三：显存不足（OOM）**
+
+**症状：**
+- CUDA out of memory错误
+- 大并发请求失败
+- 长序列生成中断
+
+**诊断：**
+\`\`\`python
+# 显存分析工具
+import torch
+
+def print_memory_stats():
+    print(f"已分配: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    print(f"已缓存: {torch.cuda.memory_reserved() / 1e9:.2f} GB")
+    print(f"最大分配: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+
+# 在推理前后调用
+print_memory_stats()
+output = model.generate(input_ids)
+print_memory_stats()
+\`\`\`
+
+**解决方案：**
+
+\`\`\`python
+# 显存优化配置
+from vllm import LLM, SamplingParams
+
+# 方案1：降低最大序列长度
+llm = LLM(
+    model="Qwen/Qwen2.5-72B",
+    max_model_len=4096,  # 从8192降到4096
+    gpu_memory_utilization=0.95,
+)
+
+# 方案2：启用量化
+llm = LLM(
+    model="Qwen/Qwen2.5-72B",
+    quantization="awq",  # AWQ量化
+    load_format="awq",
+)
+
+# 方案3：张量并行
+llm = LLM(
+    model="Qwen/Qwen2.5-72B",
+    tensor_parallel_size=4,  # 4卡并行
+)
+
+# 方案4：限制并发数
+sampling_params = SamplingParams(
+    max_tokens=1024,
+    best_of=1,  # 不使用best_of
+)
+\`\`\`
+
+### 4.3 调优实战案例
+
+**案例1：电商客服系统性能优化**
+
+**背景：**
+- 日均调用量：200万次
+- 原始配置：4×A100，单实例vLLM
+- 问题：高峰期P99延迟>10s，用户投诉多
+
+**诊断过程：**
+
+1. 指标分析：
+   - GPU利用率：25%（严重浪费）
+   - 平均批处理大小：2-3（太小）
+   - 队列深度高峰期：200+
+
+2. 瓶颈定位：
+   - 批处理参数配置不合理
+   - 单实例吞吐不足
+   - 无请求缓存
+
+**优化措施：**
+
+\`\`\`python
+# 优化前配置
+llm = LLM(
+    model="Qwen/Qwen2.5-14B",
+    tensor_parallel_size=2,
+    max_num_seqs=16,  # 太小
+    gpu_memory_utilization=0.85,
+)
+
+# 优化后配置
+llm = LLM(
+    model="Qwen/Qwen2.5-14B",
+    tensor_parallel_size=2,
+    max_num_seqs=128,  # 增大批处理
+    max_num_batched_tokens=8192,  # 限制总token数
+    gpu_memory_utilization=0.95,  # 提高利用率
+    max_model_len=4096,  # 降低序列长度
+)
+\`\`\`
+
+\`\`\`yaml
+# 部署架构优化
+# 优化前：1个大实例
+replicas: 1
+resources:
+  gpu: 4
+
+# 优化后：4个小实例（更好的并行）
+replicas: 4
+resources:
+  gpu: 1
+\`\`\`
+
+\`\`\`python
+# 添加语义缓存
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+class SemanticCache:
+    def __init__(self, threshold=0.95):
+        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+        self.cache = {}  # {embedding: response}
+        self.threshold = threshold
+        
+    def get(self, query):
+        emb = self.encoder.encode([query])[0]
+        for cached_emb, response in self.cache.items():
+            sim = np.dot(emb, cached_emb) / (
+                np.linalg.norm(emb) * np.linalg.norm(cached_emb)
+            )
+            if sim > self.threshold:
+                return response
+        return None
+        
+    def set(self, query, response):
+        emb = self.encoder.encode([query])[0]
+        self.cache[emb.tobytes()] = response
+\`\`\`
+
+**优化效果：**
+
+| 指标 | 优化前 | 优化后 | 提升 |
+|-----|-------|-------|-----|
+| QPS | 50 | 180 | 3.6× |
+| P99延迟 | 12s | 1.8s | 85%↓ |
+| GPU利用率 | 25% | 72% | 47%↑ |
+| 成本/请求 | ¥0.02 | ¥0.006 | 70%↓ |
+
+**案例2：多模态服务显存优化**
+
+**背景：**
+- 模型：LLaVA-Next-34B
+- 问题：16K上下文经常OOM
+- 硬件：4×A100 80GB
+
+**优化措施：**
+
+\`\`\`python
+# 多模态显存优化策略
+from vllm import LLM
+
+# 1. 分离视觉编码器
+llm = LLM(
+    model="llava-hf/llava-v1.6-34b-hf",
+    image_token_id=32000,
+    image_feature_size=576,
+    
+    # 关键优化
+    max_model_len=16384,
+    gpu_memory_utilization=0.92,
+    
+    # 启用KV Cache压缩
+    kv_cache_dtype="fp8",  # FP8量化KV Cache
+    
+    # 视觉编码器优化
+    image_input_type="pixel_values",
+    disable_image_partition=False,
+)
+
+# 2. 动态批处理
+# 根据图像大小动态调整批处理
+def get_dynamic_batch_size(image_size):
+    if image_size <= 336:  # 小图
+        return 32
+    elif image_size <= 672:  # 中图
+        return 16
+    else:  # 大图
+        return 8
+\`\`\`
+
+**优化效果：**
+
+| 场景 | 优化前 | 优化后 |
+|-----|-------|-------|
+| 4K上下文 | 正常 | 正常 |
+| 8K上下文 | 偶发OOM | 正常 |
+| 16K上下文 | 频繁OOM | 正常 |
+| 最大支持 | 12K | 20K+ |
+
+### 4.4 自动化调优工具
+
+**工具1：vLLM自动调优**
+
+\`\`\`python
+# vLLM性能自动调优
+from vllm import LLM
+
+# 启用自动调优
+llm = LLM(
+    model="Qwen/Qwen2.5-72B",
+    enforce_eager=True,
+    
+    # 自动选择最优block大小
+    block_size=0,  # 0表示自动
+    
+    # 自动调整swap空间
+    swap_space=0,  # 0表示自动
+    
+    # 启用性能profile
+    # vllm run --profile your_model
+)
+\`\`\`
+
+**工具2：NVIDIA Nsight Systems**
+
+\`\`\`bash
+# 性能分析
+nsys profile -o profile_report \\
+  python inference_script.py
+
+# 查看报告
+nsys-ui profile_report.qdrep
+\`\`\`
+
+**工具3：PyTorch Profiler**
+
+\`\`\`python
+import torch.profiler as profiler
+
+with profiler.profile(
+    activities=[
+        profiler.ProfilerActivity.CPU,
+        profiler.ProfilerActivity.CUDA,
+    ],
+    record_shapes=True,
+    profile_memory=True,
+    on_trace_ready=profiler.tensorboard_trace_handler('./logs'),
+) as p:
+    output = model.generate(input_ids)
+    
+# 在TensorBoard查看
+# tensorboard --logdir ./logs
+\`\`\`
+
+---
+
+## 第五部分：2026年性能优化趋势
+
+### 5.1 新兴优化技术
+
+**技术一：Speculative Decoding（投机解码）**
+
+2026年已成为主流的推理加速技术：
+
+\`\`\`
+原理：
+┌─────────────────────────────────────────────────────────┐
+│  小模型快速生成候选token                                │
+│  └─▶ 大模型并行验证多个token                           │
+│      └─▶ 正确的token直接接受                           │
+│          └─▶ 错误的token丢弃重新生成                    │
+└─────────────────────────────────────────────────────────┘
+
+加速比：2-4×（取决于任务）
+额外成本：10-20%（小模型计算）
+\`\`\`
+
+**技术二：RadixAttention（基数注意力）**
+
+vLLM和SGLang在2025-2026年引入的新技术：
+
+\`\`\`python
+# SGLang RadixAttention示例
+import sglang as sgl
+
+@sgl.function
+def multi_turn_chat(s, history, question):
+    # 历史对话前缀自动缓存
+    s += history  # 这部分会被缓存复用
+    s += "User: " + question + "\\nAssistant: "
+    s += sgl.gen("answer", max_tokens=512)
+    
+# 相同history的请求共享KV Cache
+# 加速比：3-10×（取决于历史长度）
+\`\`\`
+
+**技术三：Continuous Batching（连续批处理）**
+
+已成为2026年标准配置：
+
+\`\`\`
+传统静态批处理：
+批次1: [等待填充] → [处理] → [返回]
+批次2:                 [等待填充] → [处理] → [返回]
+
+连续批处理：
+批次持续流动，新请求随时加入，完成请求随时返回
+
+GPU利用率：从30-50%提升到70-90%
+\`\`\`
+
+### 5.2 智能化运维
+
+**AIOps在AI推理服务中的应用：**
+
+\`\`\`python
+# 异常检测与自动恢复
+class IntelligentOps:
+    def __init__(self):
+        self.anomaly_detector = self._load_model()
+        
+    async def detect_anomaly(self, metrics: dict) -> bool:
+        """基于ML的异常检测"""
+        features = self._extract_features(metrics)
+        score = self.anomaly_detector.predict(features)
+        return score > 0.8
+        
+    async def auto_remediate(self, anomaly_type: str):
+        """自动修复"""
+        actions = {
+            "high_latency": self._scale_up,
+            "gpu_oom": self._reduce_batch_size,
+            "high_error_rate": self._restart_instance,
+        }
+        await actions[anomaly_type]()
+        
+    async def _scale_up(self):
+        """自动扩容"""
+        # 调用K8s API增加副本
+        pass
+        
+    async def _reduce_batch_size(self):
+        """降低批处理大小"""
+        # 动态调整配置
+        pass
+\`\`\`
+
+### 5.3 成本与性能平衡
+
+**2026年最佳实践：**
+
+| 场景 | 性能优先 | 成本优先 | 平衡方案 |
+|-----|---------|---------|---------|
+| 实时对话 | H200 + vLLM | INT4量化 + L40S | L40S + INT8量化 |
+| 批量处理 | 大批次 + 高吞吐 | Spot实例 | 混合部署 |
+| 开发测试 | 高配置GPU | CPU推理 | 小模型量化 |
+
+---
+
+## 本章小结
+
+高并发与性能调优是AI服务从实验室走向生产的核心能力。本章核心要点：
+
+1. **架构设计**：异步非阻塞、请求队列、资源池化是高并发三大原则
+2. **负载均衡**：自适应负载均衡最适合AI推理场景，需考虑GPU实时状态
+3. **监控体系**：四层指标（业务、服务、推理、系统）全覆盖，Prometheus+Grafana是黄金组合
+4. **性能调优**：诊断五步法、瓶颈定位、针对性优化是核心方法论
+5. **2026趋势**：Speculative Decoding、RadixAttention、Continuous Batching已成为标配
+
+**实践建议：**
+1. 从监控入手，建立完整的可观测性体系
+2. 用压测工具（如Locust）验证性能基线
+3. 采用渐进式优化，每次只改一个变量
+4. 建立性能基线，持续回归测试
+
+---
+
+## 思考题
+
+1. 您的AI服务当前最大的性能瓶颈在哪里？如何用本章的方法诊断和解决？
+2. 如果要在成本降低30%的前提下保持服务质量，您会采取哪些优化措施？
+3. 如何设计一个能够自动扩缩容的智能调度系统？需要考虑哪些因素？
+
+---
+
+## 参考资料
+
+1. vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention, 2023
+2. SGLang: Efficient Execution of Structured Language Model Programs, 2024
+3. TensorRT-LLM官方文档, NVIDIA, 2026
+4. 《大规模语言模型推理优化实践》, 机械工业出版社, 2025
+5. Prometheus监控最佳实践, 2026
+6. NVIDIA DCGM Exporter文档, 2026
+7. 《分布式系统性能优化》, 电子工业出版社, 2025
+
+---
+
+*本章完。下一章将深入探讨《SGLang深度优化：Radix缓存与多并发任务的极致交互》。*`;
+
+        // Configure marked
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (e) {}
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+        
+        // Render markdown
+        document.getElementById('content').innerHTML = marked.parse(markdownContent);
+        
+        // Generate TOC
+        function generateTOC() {
+            const headers = document.querySelectorAll('#content h2, #content h3');
+            const tocList = document.getElementById('tocList');
+            
+            headers.forEach((header, index) => {
+                const id = header.id || `section-${index}`;
+                header.id = id;
+                
+                const li = document.createElement('li');
+                li.className = `toc-item toc-item-${header.tagName.toLowerCase()}`;
+                
+                const a = document.createElement('a');
+                a.href = `#${id}`;
+                a.className = 'toc-link';
+                a.textContent = header.textContent.replace(/^[0-9.]+\s*/, '');
+                
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+                
+                li.appendChild(a);
+                tocList.appendChild(li);
+            });
+        }
+        
+        // Add copy buttons to code blocks
+        function addCopyButtons() {
+            const codeBlocks = document.querySelectorAll('#content pre');
+            
+            codeBlocks.forEach(block => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-block-wrapper';
+                
+                const header = document.createElement('div');
+                header.className = 'code-header';
+                
+                const code = block.querySelector('code');
+                const lang = code ? (code.className.match(/language-(\w+)/) || [,''])[1] : '';
+                
+                const langLabel = document.createElement('span');
+                langLabel.className = 'code-lang';
+                langLabel.textContent = lang || 'code';
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'code-copy';
+                copyBtn.textContent = '复制';
+                copyBtn.addEventListener('click', async () => {
+                    const text = code ? code.textContent : block.textContent;
+                    await navigator.clipboard.writeText(text);
+                    copyBtn.textContent = '已复制!';
+                    setTimeout(() => copyBtn.textContent = '复制', 2000);
+                });
+                
+                header.appendChild(langLabel);
+                header.appendChild(copyBtn);
+                
+                block.parentNode.insertBefore(header, block);
+            });
+        }
+        
+        // Progress bar
+        function updateProgress() {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = (scrollTop / docHeight) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+        
+        // Active TOC link
+        function updateActiveTOC() {
+            const sections = document.querySelectorAll('#content h2, #content h3');
+            const scrollPos = window.scrollY + 150;
+            
+            sections.forEach(section => {
+                const link = document.querySelector(`.toc-link[href="#${section.id}"]`);
+                if (link) {
+                    const sectionTop = section.offsetTop;
+                    const sectionBottom = sectionTop + section.offsetHeight;
+                    
+                    if (scrollPos >= sectionTop && scrollPos < sectionBottom) {
+                        document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+                        link.classList.add('active');
+                    }
+                }
+            });
+        }
+        
+        // Back to top
+        function updateBackToTop() {
+            const btn = document.getElementById('backToTop');
+            if (window.scrollY > 500) {
+                btn.classList.add('visible');
+            } else {
+                btn.classList.remove('visible');
+            }
+        }
+        
+        document.getElementById('backToTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        // Copy link
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href);
+            alert('链接已复制到剪贴板！');
+        }
+        
+        // Initialize
+        window.addEventListener('scroll', () => {
+            updateProgress();
+            updateActiveTOC();
+            updateBackToTop();
+        });
+        
+        window.addEventListener('load', () => {
+            generateTOC();
+            addCopyButtons();
+            hljs.highlightAll();
+        });
+    </script>
+</body>
+</html>

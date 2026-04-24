@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第12章 项目实战：企业知识库</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-card: #1c2128;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-purple: #a371f7;
+            --accent-green: #3fb950;
+            --accent-orange: #f0883e;
+            --border-color: #30363d;
+            --code-bg: #161b22;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.8;
+            font-size: 16px;
+        }
+
+        /* Navigation Header */
+        .nav-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(13, 17, 23, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            padding: 0 20px;
+        }
+
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .nav-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-title::before {
+            content: '📚';
+            font-size: 24px;
+        }
+
+        /* Sidebar - 左侧目录导航 */
+        .sidebar {
+            width: 280px;
+            position: fixed;
+            top: 64px;
+            left: 0;
+            height: calc(100vh - 64px);
+            overflow-y: auto;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 24px 0;
+            font-size: 14px;
+            z-index: 100;
+        }
+
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+
+        .sidebar-section { margin-bottom: 24px; }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 20px;
+            margin-bottom: 8px;
+        }
+
+        .sidebar-item {
+            display: block;
+            padding: 8px 20px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-item:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            border-left-color: var(--accent-blue);
+        }
+
+        .sidebar-item.active {
+            color: var(--accent-blue);
+            background: var(--bg-tertiary);
+            border-left-color: var(--accent-blue);
+        }
+
+        .sidebar-item.level-2 { padding-left: 32px; }
+        .sidebar-item.level-3 { padding-left: 44px; font-size: 13px; }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-top: 64px;
+        }
+
+        .content-wrapper {
+            margin-left: 280px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 48px 60px; }
+
+        h1 { font-size: 2.5em; color: #00d4aa; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #00d4aa; }
+        h2 { font-size: 1.8em; color: #00d4aa; margin-top: 50px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        h3 { font-size: 1.4em; color: #4fc3f7; margin-top: 35px; margin-bottom: 15px; }
+        h4 { font-size: 1.2em; color: #81c784; margin-top: 25px; margin-bottom: 10px; }
+        p { margin-bottom: 15px; text-align: justify; color: var(--text-secondary); }
+        strong { color: #ffd54f; font-weight: 600; }
+        hr { border: none; border-top: 1px solid var(--border-color); margin: 30px 0; }
+        blockquote { background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%); border-left: 4px solid #00d4aa; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+        blockquote p { margin: 0; color: #b0b0b0; }
+        ul, ol { margin: 15px 0; padding-left: 30px; }
+        li { margin-bottom: 8px; color: var(--text-secondary); }
+        li::marker { color: #00d4aa; }
+        code { background-color: var(--bg-tertiary); color: #ff79c6; padding: 2px 8px; border-radius: 4px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.9em; }
+        pre { background-color: #282c34; border-radius: 8px; padding: 20px; margin: 20px 0; overflow-x: auto; border: 1px solid var(--border-color); }
+        pre code { background-color: transparent; color: #abb2bf; padding: 0; font-size: 0.9em; line-height: 1.6; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background-color: var(--bg-secondary); border-radius: 8px; overflow: hidden; }
+        th { background-color: var(--bg-tertiary); color: #00d4aa; padding: 12px 15px; text-align: left; font-weight: 600; }
+        td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: rgba(0, 212, 170, 0.05); }
+        .chapter-end { text-align: center; margin-top: 60px; padding-top: 30px; border-top: 2px solid #00d4aa; color: #888; }
+        a { color: #4fc3f7; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="nav-container">
+        <div class="nav-content">
+            <div class="nav-title">AI课程</div>
+        </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <div class="main-container">
+        <!-- Sidebar - 左侧目录导航 -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">目录</div>
+                <a href="#intro" class="sidebar-item">本章导读</a>
+                <a href="#section-12-1" class="sidebar-item">12.1 企业知识库：从概念到变革</a>
+                <a href="#section-12-1-1" class="sidebar-item level-2">12.1.1 为什么企业需要知识库</a>
+                <a href="#section-12-1-2" class="sidebar-item level-2">12.1.2 2026年企业知识库的新特征</a>
+                <a href="#section-12-2" class="sidebar-item">12.2 系统架构设计：2026年最佳实践</a>
+                <a href="#section-12-2-1" class="sidebar-item level-2">12.2.1 整体架构概览</a>
+                <
