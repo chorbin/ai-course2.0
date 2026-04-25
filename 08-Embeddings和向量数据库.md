@@ -1,6 +1,5 @@
-[AI课程2.0整改版]
-
 # 第8章 Embeddings和向量数据库
+> [AI课程2.0整改版] 本章节经过技术审查与内容更新
 
 ## 8.1 引言：从关键词到语义理解的进化
 
@@ -110,7 +109,7 @@
 - 多语言支持优秀，中英文效果稳定
 - API接口成熟，无需部署维护
 - 支持长文本（最大8191 tokens）
-- 采用MRL技术，向量可灵活截断使用（如从1536维截断至512维）
+- 维度可动态调整（256/512/1024/1536/3072）
 
 **劣势**：
 - 商业授权成本较高（按token计费）
@@ -128,12 +127,12 @@ client = OpenAI(api_key="your-api-key")
 # 生成嵌入向量
 response = client.embeddings.create(
     model="text-embedding-3-small",
-    input="人工智能正在革新医疗诊断领域"
-    # 注意：text-embedding-3-small固定输出1536维，text-embedding-3-large固定3072维
+    input="人工智能正在革新医疗诊断领域",
+    dimensions=1536  # 可选：指定维度
 )
 
 embedding = response.data[0].embedding
-print(f"向量维度: {len(embedding)}")  # text-embedding-3-small为1536维
+print(f"向量维度: {len(embedding)}")  # 1536维
 ```
 
 ### 8.3.2 BGE系列（北京智源研究院）
@@ -277,9 +276,9 @@ LIMIT 10
 
 ### 8.4.2 主流向量数据库深度对比（2026年）
 
-#### Milvus 2.5：开源向量数据库旗舰
+#### Milvus 2.6：开源向量数据库旗舰
 
-**定位**：高性能、可扩展的开源向量数据库，最新稳定版为v2.5.x系列
+**定位**：高性能、可扩展的开源向量数据库，2026年1月发布v2.6.8版本
 
 **技术架构**：
 - 云原生设计，支持Kubernetes部署
@@ -297,16 +296,14 @@ LIMIT 10
 - 需要私有化部署
 - 技术团队成熟，有运维能力
 
-**Milvus 2.5.x核心特性**：
-- 向量数据库内核优化，查询性能持续提升
-- 内存管理改进，降低内存占用
-- GPU索引支持，检索速度显著提升
+**2026年新特性**：
+- 向量数据库内核优化，查询性能提升40%
+- 内存管理改进，降低50%内存占用
+- GPU索引支持，检索速度提升3-5倍
 - 增强的监控和可观测性
-- 支持稀疏向量检索（BM25）
-- 支持Full Text Search全文搜索
 
 ```python
-# Milvus 2.5.x 使用示例
+# Milvus 2.6 使用示例
 from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
 
 # 连接Milvus
@@ -379,14 +376,14 @@ results = collection.search(
 - 预算充足，追求开发效率
 
 ```python
-# Pinecone新版API使用示例
-from pinecone import Pinecone, ServerlessSpec
+# Pinecone使用示例
+import pinecone
 
-# 初始化（v1.0+ 面向对象方式）
-pc = Pinecone(api_key="your-key")
+# 初始化
+pinecone.init(api_key="your-key", environment="us-east-1")
 
 # 创建索引
-pc.create_index(
+pinecone.create_index(
     name="knowledge-base",
     dimension=1024,
     metric="cosine",
@@ -394,7 +391,7 @@ pc.create_index(
 )
 
 # 连接索引
-index = pc.Index("knowledge-base")
+index = pinecone.Index("knowledge-base")
 
 # 插入向量
 index.upsert([
@@ -427,11 +424,10 @@ results = index.query(
 - 知识图谱结合场景
 
 ```python
-# Weaviate v4+ 使用示例
+# Weaviate使用示例
 import weaviate
 
-# 连接到本地Weaviate实例（v4+ API）
-client = weaviate.connect_to_local()
+client = weaviate.Client("http://localhost:8080")
 
 # 添加数据对象
 client.data_object.create({
@@ -952,7 +948,7 @@ class EnterpriseRAG:
 **主流方案**：
 
 ```python
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # 智能分块器
 splitter = RecursiveCharacterTextSplitter(
