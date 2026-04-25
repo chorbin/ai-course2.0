@@ -5,6 +5,8 @@
 
 ---
 
+
+> ⚠️ 技术审查声明：本章节的代码示例和API接口为概念性说明，部分示例可能基于SGLang早期版本或预测性描述。实际开发时请参考 [SGLang官方文档](https://github.com/sgl-project/sglang) 获取最新稳定API。
 ## 34.1 引言：为什么SGLang在2026年成为推理框架首选
 
 ### 34.1.1 大模型推理的演进历程
@@ -218,6 +220,7 @@ SGLang实现了**LRU-K**缓存淘汰策略：
 
 ```python
 # 缓存预热配置示例
+# 注意：以下API为概念性示例，实际API请参考官方文档
 sglang.warmup_cache(
     prefixes=[
         "请根据以下文档回答问题：",
@@ -347,6 +350,7 @@ engine = sglang.Engine(
 
 ```python
 # SGLang生产配置（智能客服场景）
+# 注意：EngineConfig参数为概念性说明
 config = sglang.EngineConfig(
     # 基础配置
     model="qwen-max-2026",
@@ -578,6 +582,7 @@ class CacheWarmupScheduler:
 
 ```python
 # 跨模型缓存共享（需模型架构兼容）
+# 注意：SharedCacheConfig为概念性示例
 shared_cache_config = sglang.SharedCacheConfig(
     enabled=True,
     strategy="embedding_aligned",  # 共享embedding层缓存
